@@ -50,7 +50,7 @@ function closeSession(id: string) {
 }
 
 const CONFIG_KEY = "career-ops:config";
-function cliId(): string | null {
+export function cliId(): string | null {
   try {
     return JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}").cliId || null;
   } catch {

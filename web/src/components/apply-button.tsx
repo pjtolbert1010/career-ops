@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { Send, Lock } from "lucide-react";
 import { useJobs } from "@/components/jobs/job-store";
-import { useApply } from "@/components/apply/apply-provider";
+import { useState } from "react";
+import { cliId, useApply } from "@/components/apply/apply-provider";
+import { openWithExtension } from "@/lib/apply/extension-bridge";
 
 // The "Apply" CTA. Brand fill only when the score is at/above the apply line
 // and legitimacy is not caution (#4206). Enabled ONLY when the tailored CV
@@ -26,6 +28,7 @@ export function ApplyButton({
   const router = useRouter();
   const { jobs } = useJobs();
   const apply = useApply();
+  const [opened, setOpened] = useState(false);
 
   const pdfJobDone = jobs.some((j) => j.kind === "pdf" && j.input === n && j.status === "done");
   const hasUrl = !!url && /^https?:\/\//i.test(url);
@@ -46,7 +49,15 @@ export function ApplyButton({
   return (
     <button
       type="button"
-      onClick={() => {
+      onClick={async () => {
+        // With the career-ops extension installed, the posting opens in a new
+        // tab of this browser, where the user's own sign-ins work, and the
+        // extension fills it after sign-in. Without it, the Playwright window.
+        if (await openWithExtension({ url: url!, company, n, cliId: cliId() })) {
+          setOpened(true);
+          setTimeout(() => setOpened(false), 5000);
+          return;
+        }
         // n + from ride along so the Apply page can mark this row Applied,
         // return the user to the page they left, and resolve THIS report's own
         // tailored CV rather than the newest one for the company. Read straight
@@ -67,7 +78,7 @@ export function ApplyButton({
           : "Apply — opens the form pre-filled, you review and submit yourself"
       }
     >
-      <Send className="size-3.5" /> Apply
+      <Send className="size-3.5" /> {opened ? "Opened in new tab" : "Apply"}
     </button>
   );
 }
