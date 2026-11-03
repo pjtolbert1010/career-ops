@@ -356,7 +356,9 @@
 
   // "If you answered yes to the question above, explain…" fields only apply
   // when the question before them is Yes.
-  const FOLLOW_UP = /^\s*(if (you )?(answered|marked|selected|checked|responded) ["“']?yes|if yes\b|if so\b|if applicable, (explain|describe|list))/i;
+  // NEOGOV numbers its labels ("Question 6. If you answered yes…"), so a
+  // leading question number is allowed before the follow-up wording.
+  const FOLLOW_UP = /^\s*(?:\*?\s*(?:question\s+)?\d+\s*[.:)]?\s*)?(if (you)?(answered|marked|selected|checked|responded) ["“']?yes|if yes\b|if so\b|if applicable, (explain|describe|list))/i;
   /** The current choice of the nearest visible radio group or select above
    *  todo[i] on the page. Read from the page, not the draft, because on a retry
    *  the question above was filled earlier and is not in this draft. */
@@ -423,12 +425,19 @@
     let filled = 0;
     let confirm = 0;
     let notNeeded = 0;
+    let optional = 0;
     for (const [i, f] of todo.entries()) {
       const a = res.answers ? res.answers[f.id] : null;
       const value = a && typeof a === "object" ? a.value : a;
       const target = f.group ? f.group[0] : f.el;
       if (FOLLOW_UP.test(f.label) && /^no\b/i.test(choiceBefore(todo, i))) {
         notNeeded += 1;
+        continue;
+      }
+      // An optional field the draft can't answer is left alone, not outlined:
+      // only required ones need the user.
+      if (a && a.needs_confirmation && f.type !== "file" && !f.required && !/\(required\)/i.test(f.label)) {
+        optional += 1;
         continue;
       }
       if (a && a.needs_confirmation && f.type !== "file") {
@@ -448,7 +457,8 @@
     filledAny = true;
     const extra = confirm ? ` ${confirm} outlined in orange need your answer.` : "";
     const skipped = notNeeded ? ` ${notNeeded} "if yes, explain" left blank (answered No).` : "";
-    badge(`Filled ${filled} of ${todo.length - notNeeded} fields.${extra}${skipped} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled + notNeeded < todo.length);
+    const left = optional ? ` ${optional} optional left blank.` : "";
+    badge(`Filled ${filled} of ${todo.length - notNeeded - optional} fields.${extra}${skipped}${left} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled + notNeeded + optional < todo.length);
     busy = false;
   }
 
