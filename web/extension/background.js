@@ -8,12 +8,17 @@
 
 const MAX_DRAFTS_PER_TAB = 12;
 
+// Tracked tabs live in storage.local so reloading the extension (after an
+// update) keeps them. Tab ids restart with the browser, so the list is
+// cleared on browser startup, before an old id can match a new tab.
+chrome.runtime.onStartup.addListener(() => chrome.storage.local.remove("jobs"));
+
 async function jobs() {
-  const { jobs = {} } = await chrome.storage.session.get("jobs");
+  const { jobs = {} } = await chrome.storage.local.get("jobs");
   return jobs;
 }
 async function saveJobs(all) {
-  await chrome.storage.session.set({ jobs: all });
+  await chrome.storage.local.set({ jobs: all });
 }
 async function jobFor(tabId) {
   return (await jobs())[tabId] || null;
