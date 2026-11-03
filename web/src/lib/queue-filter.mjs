@@ -1,9 +1,17 @@
-/** Queue tracker rows: evaluated roles scoring at least 4.0, highest first. */
-export function queueRows(rows, scoreNum) {
+import { todayIso } from "./closing-date.mjs";
+
+/**
+ * Queue tracker rows: evaluated roles scoring at least 4.0 whose posting has
+ * not closed, highest score first, then soonest closing date. A row's `closes`
+ * is an ISO day (set by the pipeline page from the report); rows without one
+ * sort after the dated rows of the same score.
+ */
+export function queueRows(rows, scoreNum, today = todayIso()) {
+  const closes = (row) => (typeof row.closes === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.closes) ? row.closes : "9999-12-31");
   return rows
-    .filter((row) => row.status === "Evaluated" && Number.isFinite(scoreNum(row.score)) && scoreNum(row.score) >= 4)
+    .filter((row) => row.status === "Evaluated" && Number.isFinite(scoreNum(row.score)) && scoreNum(row.score) >= 4 && closes(row) >= today)
     .slice()
-    .sort((a, b) => scoreNum(b.score) - scoreNum(a.score));
+    .sort((a, b) => scoreNum(b.score) - scoreNum(a.score) || closes(a).localeCompare(closes(b)));
 }
 
 /** Statuses that mean the application went out. */

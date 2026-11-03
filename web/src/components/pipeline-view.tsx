@@ -527,7 +527,11 @@ export function PipelineView({
                       <ChevronsUpDown aria-hidden="true" className="size-3" />
                     </button>
                   </th>
-                ))}
+                )).flatMap((th, i) =>
+                  tab === "QUEUE" && SORT_KEYS[i] === "score"
+                    ? [th, <th key="closes" className="whitespace-nowrap px-4 py-2.5 font-medium">closes</th>]
+                    : [th],
+                )}
               </tr>
             </thead>
             {/* Keep editors mounted while query navigation is pending: sorting
@@ -579,6 +583,7 @@ export function PipelineView({
                   <td className="px-4 py-3">
                     <Badge tone={scoreTone(r.score)}>{r.score || "—"}</Badge>
                   </td>
+                  {tab === "QUEUE" && <ClosesCell closes={r.closes} />}
                   <td className="whitespace-nowrap px-4 py-3 text-muted">
                     {tab === "QUEUE" ? (
                       <div className="flex items-center gap-2">
@@ -629,6 +634,22 @@ export function PipelineView({
 
 // Everything already sent, under the queue, so one page shows what is next
 // and what is out.
+/** Queue "closes" cell: the posting's closing date and how many days are left. */
+function ClosesCell({ closes }: { closes?: string }) {
+  if (!closes || !/^\d{4}-\d{2}-\d{2}$/.test(closes)) return <td className="whitespace-nowrap px-4 py-3 text-xs text-faint">{closes === "open" ? "Open until filled" : "—"}</td>;
+  const [y, m, d] = closes.split("-").map(Number);
+  const due = new Date(y, m - 1, d);
+  const now = new Date();
+  const days = Math.round((due.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86_400_000);
+  const label = due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const left = days === 0 ? "today" : days === 1 ? "tomorrow" : `${days} days`;
+  return (
+    <td className={cn("whitespace-nowrap px-4 py-3 text-xs tabular-nums", days <= 2 ? "font-medium text-red-500" : "text-muted")} title={closes}>
+      {label} · {left}
+    </td>
+  );
+}
+
 function AppliedSnapshot({ rows }: { rows: Application[] }) {
   return (
     <section className="mt-10">

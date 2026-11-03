@@ -155,6 +155,8 @@ export type Application = {
   notes: string;
   /** Tracker's `URL` column. A raw URL or a markdown link. "" when the column is absent. */
   url: string;
+  /** Posting closing date (ISO day), or "open" for open until filled, read from the report or JD capture; set by the pipeline page for Queue candidates only. */
+  closes?: string;
 };
 
 /**
