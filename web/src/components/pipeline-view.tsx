@@ -26,7 +26,8 @@ import { trackerCsv, trackerCsvFilename } from "@/lib/tracker-csv.mjs";
 import { SCORE_FLOORS, keepsPendingNames, keepsStoredNames, normalizeView, omissionAfterAttempt, parseViews, removeView, savedViewPayload, upsertView, viewUpdates, viewsForMutation } from "@/lib/pipeline-views.mjs";
 import { trackerEmptyMessage } from "@/lib/tracker-empty.mjs";
 import { listEntrySync } from "@/lib/history-back.mjs";
-import { queueRows } from "@/lib/queue-filter.mjs";
+import { appliedRows, queueRows } from "@/lib/queue-filter.mjs";
+import { ApplyButton } from "@/components/apply-button";
 
 type Tab = (typeof PIPELINE_TABS)[number];
 type SavedView = NonNullable<ReturnType<typeof normalizeView>>;
@@ -581,7 +582,7 @@ export function PipelineView({
                   <td className="whitespace-nowrap px-4 py-3 text-muted">
                     {tab === "QUEUE" ? (
                       <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => posting && window.open(posting, "_blank", "noopener,noreferrer")} disabled={!posting} className="text-xs text-brand-text hover:underline disabled:text-faint">Open posting</button>
+                        <ApplyButton n={r.n} url={posting ?? undefined} company={company.label} pdfReady={r.pdf.includes("✅")} />
                         <button type="button" onClick={async () => { const saved = await saveStatus(r.n, r.status, "Applied"); if (saved) { showSavedStatus({ key, status: saved }); router.refresh(); } }} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-surface-hover">Applied</button>
                         <button type="button" onClick={async () => { const saved = await saveStatus(r.n, r.status, "SKIP"); if (saved) { showSavedStatus({ key, status: saved }); router.refresh(); } }} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-surface-hover">Skip</button>
                       </div>
@@ -620,7 +621,59 @@ export function PipelineView({
       ) : (
         <EmptyTracker shape={trackerShape} query={deferredQ} min={minFilter} tab={tab} />
       )}
+
+      {visibleTab === "QUEUE" && <AppliedSnapshot rows={appliedRows(visibleApplications)} />}
     </PageFrame>
+  );
+}
+
+// Everything already sent, under the queue, so one page shows what is next
+// and what is out.
+function AppliedSnapshot({ rows }: { rows: Application[] }) {
+  return (
+    <section className="mt-10">
+      <h2 className="font-display text-lg tracking-tight">
+        Applied <span className="text-sm text-faint tabular-nums">{rows.length}</span>
+      </h2>
+      {rows.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">Nothing sent yet. Roles you mark Applied show up here.</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto rounded-2xl border border-border">
+          <table className="w-full min-w-[36rem] text-sm">
+            <thead className="bg-surface/60 text-left text-xs uppercase tracking-wide text-faint">
+              <tr>
+                <th className="px-4 py-2.5 font-medium">Date</th>
+                <th className="px-4 py-2.5 font-medium">Company</th>
+                <th className="px-4 py-2.5 font-medium">Role</th>
+                <th className="px-4 py-2.5 font-medium">Score</th>
+                <th className="px-4 py-2.5 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((r) => {
+                const company = companyPresentation(r);
+                return (
+                  <tr key={applicationKey(r)} className="transition-colors hover:bg-surface/40">
+                    <td className="whitespace-nowrap px-4 py-3 text-faint tabular-nums">{r.date}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <Link href={`/pipeline/${encodeURIComponent(r.n)}`} className="flex items-center gap-2.5 hover:text-brand-text">
+                        <CompanyLogo name={company.logoName} size={20} />
+                        {company.label}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-muted">{r.role}</td>
+                    <td className="px-4 py-3">
+                      <Badge tone={scoreTone(r.score)}>{r.score || "—"}</Badge>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted">{r.status}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 

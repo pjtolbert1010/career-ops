@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { readApplications, readInbox, requestReportReader, doctorState } from "@/lib/career-ops";
 import { pickAwaitingDecision } from "@/lib/home/awaiting.mjs";
 import { cardReason } from "@/lib/machine-summary.mjs";
@@ -18,6 +19,8 @@ export default function Home() {
   // First run (truly empty install): the CV-upload takeover IS the home — value
   // before commitment. The full dashboard returns once they have a CV or any data.
   if (showFirstRunHome(phase, snapshot.inbox.length)) return <FirstRunHome />;
+  // Set up and tracking roles: the ranked pipeline is the home page.
+  if (!onboardingNeeded && snapshot.applications.length > 0) redirect("/pipeline");
 
   const { inbox, applications } = todaySnapshot(snapshot, scoreNum);
   const reasons: Record<string, CardReason> = {};
