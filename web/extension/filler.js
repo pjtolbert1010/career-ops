@@ -17,9 +17,9 @@
 
   // ---- status badge (top frame only; other frames relay through background)
   let badgeText = null;
-  function badge(text, kind = "info") {
+  function badge(text, kind = "info", retry = false) {
     if (!TOP) {
-      chrome.runtime.sendMessage({ type: "status", text, kind }).catch(() => {});
+      chrome.runtime.sendMessage({ type: "status", text, kind, retry }).catch(() => {});
       return;
     }
     let host = document.getElementById("career-ops-badge");
@@ -33,23 +33,44 @@
            box-shadow:0 4px 16px rgba(0,0,0,.25);color:#fff;background:#1f2937;position:relative}
         .b.ok{background:#166534}.b.warn{background:#92400e}.b.err{background:#991b1b}
         .t{font-weight:600;margin-bottom:2px}
-        button{position:absolute;top:6px;right:8px;background:none;border:0;color:#fff;font-size:15px;cursor:pointer}
-      </style><div class="b"><div class="t">career-ops</div><div class="m"></div><button title="Hide">×</button></div>`;
-      root.querySelector("button").onclick = () => host.remove();
+        .x{position:absolute;top:6px;right:8px;background:none;border:0;color:#fff;font-size:15px;cursor:pointer}
+        .r{margin-top:8px;padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;font:inherit;cursor:pointer}
+      </style><div class="b"><div class="t">career-ops</div><div class="m"></div><button class="r" hidden>Try blank fields again</button><button class="x" title="Hide">×</button></div>`;
+      root.querySelector(".x").onclick = () => host.remove();
+      root.querySelector(".r").onclick = () => retryBlank();
       (document.body || document.documentElement).appendChild(host);
     }
     const box = host.shadowRoot.querySelector(".b");
     box.className = `b ${kind}`;
     host.shadowRoot.querySelector(".m").textContent = text;
+    host.shadowRoot.querySelector(".r").hidden = !retry;
     badgeText = text;
   }
   if (TOP) {
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === "status-relay") {
         if (msg.kind === "ok" || msg.kind === "err" || msg.kind === "warn") filledAny = true;
-        badge(msg.text, msg.kind);
+        badge(msg.text, msg.kind, msg.retry);
       }
+      if (msg.type === "retry-relay") retryBlank(true);
     });
+  }
+
+  // Forget every field this frame read that is still blank, so the next scan
+  // drafts them again. Filled fields stay tagged and are never touched. The
+  // top frame also asks the other frames to do the same.
+  function retryBlank(fromRelay = false) {
+    if (TOP && !fromRelay) chrome.runtime.sendMessage({ type: "retry" }).catch(() => {});
+    if (busy) return;
+    for (const el of document.querySelectorAll("[data-co-field]")) {
+      const blank = el.type === "radio" ? !document.querySelector(`[data-co-field="${CSS.escape(el.getAttribute("data-co-field"))}"]:checked`) : el.type === "checkbox" ? !el.checked : el.type === "file" ? !(el.files && el.files.length) : el.tagName === "SELECT" ? el.selectedIndex <= 0 : !el.value;
+      if (!blank) continue;
+      el.removeAttribute("data-co-field");
+      el.removeAttribute("data-co-option");
+      el.style.outline = "";
+      el.removeAttribute("title");
+    }
+    schedule();
   }
 
   // ---- sign-in detection (same rule as web/src/lib/apply/login-url.mjs)
@@ -327,7 +348,7 @@
     }
     filledAny = true;
     const extra = confirm ? ` ${confirm} outlined in orange need your answer.` : "";
-    badge(`Filled ${filled} of ${todo.length} fields.${extra} Review everything, then submit it yourself.`, confirm ? "warn" : "ok");
+    badge(`Filled ${filled} of ${todo.length} fields.${extra} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled < todo.length);
     busy = false;
   }
 

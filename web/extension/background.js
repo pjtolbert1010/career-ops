@@ -50,7 +50,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "status" && sender.tab) {
       // A frame's progress, shown by the badge in the tab's top frame.
-      chrome.tabs.sendMessage(sender.tab.id, { type: "status-relay", text: msg.text, kind: msg.kind }, { frameId: 0 }).catch(() => {});
+      chrome.tabs.sendMessage(sender.tab.id, { type: "status-relay", text: msg.text, kind: msg.kind, retry: msg.retry }, { frameId: 0 }).catch(() => {});
+      return sendResponse({ ok: true });
+    }
+    if (msg.type === "retry" && sender.tab) {
+      // The top frame's retry button: pass it to every frame (the top one ignores its own echo while busy).
+      chrome.tabs.sendMessage(sender.tab.id, { type: "retry-relay" }).catch(() => {});
       return sendResponse({ ok: true });
     }
     sendResponse(null);

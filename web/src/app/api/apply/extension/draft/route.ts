@@ -94,5 +94,13 @@ export async function POST(req: Request) {
     }
   }
   log(`extension draft: ${Object.keys(obj).length} answers${truncated ? " (truncated)" : ""} · cv attached=${!!cv}`);
+  // One line per field, so a form that comes back mostly "needs you" can be
+  // diagnosed from the log: was it the label, or the planner's choice?
+  for (const f of fields) {
+    const a = (obj as Record<string, unknown>)[f.id];
+    const ans = a && typeof a === "object" ? (a as { value?: unknown; needs_confirmation?: unknown }) : { value: a };
+    const verdict = ans.needs_confirmation ? "NEEDS YOU" : ans.value != null && String(ans.value).trim() ? `answer (${String(ans.value).length} chars)` : "blank";
+    log(`  ${f.id} [${f.type}${f.required ? "*" : ""}] "${f.label}"${f.options?.length ? ` {${f.options.length} options}` : ""} → ${verdict}`);
+  }
   return Response.json({ answers: obj, truncated, cv });
 }
