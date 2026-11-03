@@ -279,6 +279,22 @@
     return true;
   }
 
+  // "If you answered yes to the question above, explain…" fields only apply
+  // when the question before them is Yes.
+  const FOLLOW_UP = /^\s*(if (you )?(answered|marked|selected|checked|responded) ["“']?yes|if yes\b|if so\b|if applicable, (explain|describe|list))/i;
+  /** The current choice of the nearest radio group or select before todo[i]. */
+  function choiceBefore(todo, i) {
+    for (let j = i - 1; j >= 0; j--) {
+      const p = todo[j];
+      if (p.type === "radio") {
+        const on = p.group.find((r) => r.checked);
+        return on ? on.getAttribute("data-co-option") || on.value || "" : "";
+      }
+      if (p.type === "select") return p.combobox ? p.el.value || "" : (p.el.options[p.el.selectedIndex]?.textContent || "").trim();
+    }
+    return "";
+  }
+
   function draft(title, fields) {
     return new Promise((resolve) => {
       const port = chrome.runtime.connect({ name: "draft" });
@@ -328,10 +344,15 @@
     }
     let filled = 0;
     let confirm = 0;
-    for (const f of todo) {
+    let notNeeded = 0;
+    for (const [i, f] of todo.entries()) {
       const a = res.answers ? res.answers[f.id] : null;
       const value = a && typeof a === "object" ? a.value : a;
       const target = f.group ? f.group[0] : f.el;
+      if (FOLLOW_UP.test(f.label) && /^no\b/i.test(choiceBefore(todo, i))) {
+        notNeeded += 1;
+        continue;
+      }
       if (a && a.needs_confirmation && f.type !== "file") {
         confirm += 1;
         mark(target, "#d97706", "career-ops: answer this one yourself");
@@ -348,7 +369,8 @@
     }
     filledAny = true;
     const extra = confirm ? ` ${confirm} outlined in orange need your answer.` : "";
-    badge(`Filled ${filled} of ${todo.length} fields.${extra} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled < todo.length);
+    const skipped = notNeeded ? ` ${notNeeded} "if yes, explain" left blank (answered No).` : "";
+    badge(`Filled ${filled} of ${todo.length - notNeeded} fields.${extra}${skipped} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled + notNeeded < todo.length);
     busy = false;
   }
 

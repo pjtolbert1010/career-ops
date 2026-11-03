@@ -70,6 +70,7 @@ For each field give the best answer:
 - free-text (Why us?, cover-letter, "most impactful thing you've built", etc.) → a concise, honest, concrete answer in the candidate's own voice (no buzzwords, active voice, real metrics only). Keep each under ~120 words.
 - select/radio → choose the best-matching option using the EXACT option text from the list.
 - NEVER fill legal / visa / work-authorization / salary / demographic / sensitive fields → set needs_confirmation:true and value:"".
+- A follow-up field ("If you answered yes to the question above, please explain…") depends on the question before it: when that answer is No, set value:"" and needs_confirmation:false.
 
 Output ONLY a compact JSON object mapping each field id → {"value": "...", "needs_confirmation": boolean}. No prose, no markdown, no code fence.`;
 }
