@@ -29,6 +29,7 @@ export function normalizeQuestion(label) {
     .replace(/\(required\)|\*/g, "")
     .replace(/^\s*(question\s*)?\d+\s*([.:)]\s*|\s+)/, "")
     .replace(/\s+clear\s*$/, "")
+    .replace(/['’]/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
@@ -58,7 +59,34 @@ export function saveBank(root, bank) {
 export function findEntry(bank, label) {
   const key = normalizeQuestion(label);
   if (!key) return null;
-  return bank.entries.find((e) => e.labels.some((l) => normalizeQuestion(l) === key)) ?? null;
+  const exact = bank.entries.find((e) => e.labels.some((l) => normalizeQuestion(l) === key));
+  if (exact) return exact;
+  // Close wording ("this recruitment" vs "this recruitment process"): the same
+  // question when nearly all its words are shared. Short labels must match
+  // exactly, since "Speak" and "Read" share nothing worth comparing.
+  const words = wordSet(key);
+  if (words.size < 4) return null;
+  let best = null;
+  let bestScore = SIMILAR;
+  for (const e of bank.entries) {
+    for (const l of e.labels) {
+      const other = wordSet(normalizeQuestion(l));
+      if (other.size < 4) continue;
+      let shared = 0;
+      for (const w of words) if (other.has(w)) shared += 1;
+      const score = shared / (words.size + other.size - shared);
+      if (score >= bestScore) {
+        best = e;
+        bestScore = score;
+      }
+    }
+  }
+  return best;
+}
+
+const SIMILAR = 0.8;
+function wordSet(key) {
+  return new Set(key.split(" ").filter(Boolean));
 }
 
 /**
@@ -86,6 +114,7 @@ export function upsertAnswers(bank, items, now = new Date()) {
       if (existing.answer !== answer) updated += 1;
       existing.answer = answer;
       existing.type = type;
+      if (!existing.labels.includes(label)) existing.labels.push(label);
       if (options?.length) existing.options = options;
       existing.updated = now.toISOString();
       continue;

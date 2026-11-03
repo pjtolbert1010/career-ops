@@ -120,6 +120,18 @@
     },
     true,
   );
+  // Save as the user answers, too: a field they change is saved a moment
+  // later, and leaving the page saves whatever is left, so nothing has to be
+  // saved by hand.
+  let saveTimer = 0;
+  const onAnswer = (e) => {
+    if (!known.size || !e.target || !e.target.closest || !e.target.closest("[data-co-field]")) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => learn(true), 1500);
+  };
+  document.addEventListener("change", onAnswer, true);
+  document.addEventListener("focusout", onAnswer, true);
+  window.addEventListener("pagehide", () => known.size && learn(true));
 
   // Forget every field this frame read that is still blank, so the next scan
   // drafts them again. Filled fields stay tagged and are never touched. The

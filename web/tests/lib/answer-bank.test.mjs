@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { findEntry, normalizeQuestion, upsertAnswers } from "../../src/lib/apply/answer-bank.mjs";
 
 test("normalizes NEOGOV numbering, required marks and the Clear link", () => {
-  assert.equal(normalizeQuestion("Question 21. Do you wish to claim Veteran's Preference? Clear"), "do you wish to claim veteran s preference");
+  assert.equal(normalizeQuestion("Question 21. Do you wish to claim Veteran's Preference? Clear"), "do you wish to claim veterans preference");
   assert.equal(normalizeQuestion("*05 What is your gender?"), "what is your gender");
 });
 
@@ -14,6 +14,16 @@ test("one entry per question; the latest answer wins", () => {
   upsertAnswers(bank, [{ label: "What is your gender?", type: "radio", value: "Decline" }]);
   assert.equal(bank.entries.length, 1);
   assert.equal(findEntry(bank, "*What is your gender?").answer, "Decline");
+});
+
+test("close wording finds the same question; short labels must match exactly", () => {
+  const bank = { entries: [] };
+  upsertAnswers(bank, [{ label: "Do you wish to claim Veteran's Preference for this recruitment process?", type: "radio", value: "No" }]);
+  assert.equal(findEntry(bank, "Do you wish to claim Veterans Preference for this recruitment?").answer, "No");
+  upsertAnswers(bank, [{ label: "Do you wish to claim Veterans Preference for this recruitment?", type: "radio", value: "No" }]);
+  assert.equal(bank.entries.length, 1);
+  assert.equal(bank.entries[0].labels.length, 2);
+  assert.equal(findEntry(bank, "Do you wish to claim a tax credit?"), null);
 });
 
 test("never stores ID numbers, files or blank answers", () => {
