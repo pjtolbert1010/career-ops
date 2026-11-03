@@ -71,6 +71,10 @@ For each field give the best answer:
 - select/radio → choose the best-matching option using the EXACT option text from the list.
 - NEVER fill legal / visa / work-authorization / salary / demographic / sensitive fields → set needs_confirmation:true and value:"".
 - A follow-up field ("If you answered yes to the question above, please explain…") depends on the question before it: when that answer is No, set value:"" and needs_confirmation:false.
+- Supplemental / essay questions about experience, skills, tools, how you work or how you serve diverse clients are free-text, not sensitive: ALWAYS draft them, needs_confirmation:false. If the sources lack the exact experience asked about (e.g. a specific system), say so plainly and describe the closest real experience. Never invent experience.
+- Acknowledgements ("I have read and understand…", "You understand that an offer is contingent on a background check / medical screening…") → choose the option that acknowledges (Yes / I understand), needs_confirmation:false. Accepting a site's Privacy Policy or Terms of Use is the user's own act → needs_confirmation:true.
+- Optional marketing opt-ins (résumé reviews, newsletters, partner offers) → value:"false", needs_confirmation:false.
+- Languages, veteran status, disability and anything else ${profile} does not state → needs_confirmation:true. Never assume.
 
 Output ONLY a compact JSON object mapping each field id → {"value": "...", "needs_confirmation": boolean}. No prose, no markdown, no code fence.`;
 }

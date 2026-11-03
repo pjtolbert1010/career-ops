@@ -145,6 +145,16 @@
     return "";
   }
 
+  // Shown on the page. Styled radios and checkboxes hide the input itself and
+  // show its label, so for those the label (or wrapper) decides. Hidden copies
+  // of a question (NEOGOV keeps some) fail both and are skipped.
+  function visible(el) {
+    if (el.offsetParent !== null) return true;
+    if (el.type !== "radio" && el.type !== "checkbox") return false;
+    const label = el.closest("label") || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) || el.parentElement;
+    return !!label && label.offsetParent !== null;
+  }
+
   // Fields not seen by an earlier batch. Each batch tags its controls with
   // data-co-field so a multi-step form's next page is a new batch.
   function extract() {
@@ -157,7 +167,7 @@
       const tag = el.tagName.toLowerCase();
       const itype = (el.type || "").toLowerCase();
       if (tag === "input" && ["hidden", "submit", "button", "image", "reset", "search", "password"].includes(itype)) continue;
-      if (el.offsetParent === null && itype !== "radio" && itype !== "checkbox") continue;
+      if (!visible(el)) continue;
       if (el.disabled || el.readOnly) continue;
       if (el.closest('[class*="autofill" i], #career-ops-badge')) continue;
       const isCombobox = el.getAttribute("role") === "combobox";
@@ -282,17 +292,19 @@
   // "If you answered yes to the question above, explain…" fields only apply
   // when the question before them is Yes.
   const FOLLOW_UP = /^\s*(if (you )?(answered|marked|selected|checked|responded) ["“']?yes|if yes\b|if so\b|if applicable, (explain|describe|list))/i;
-  /** The current choice of the nearest radio group or select before todo[i]. */
+  /** The current choice of the nearest visible radio group or select above
+   *  todo[i] on the page. Read from the page, not the draft, because on a retry
+   *  the question above was filled earlier and is not in this draft. */
   function choiceBefore(todo, i) {
-    for (let j = i - 1; j >= 0; j--) {
-      const p = todo[j];
-      if (p.type === "radio") {
-        const on = p.group.find((r) => r.checked);
-        return on ? on.getAttribute("data-co-option") || on.value || "" : "";
-      }
-      if (p.type === "select") return p.combobox ? p.el.value || "" : (p.el.options[p.el.selectedIndex]?.textContent || "").trim();
-    }
-    return "";
+    const el = todo[i].group ? todo[i].group[0] : todo[i].el;
+    const before = Array.from(document.querySelectorAll("input[type=radio], select")).filter(
+      (c) => c.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING && visible(c),
+    );
+    const prev = before[before.length - 1];
+    if (!prev) return "";
+    if (prev.tagName === "SELECT") return (prev.options[prev.selectedIndex]?.textContent || "").trim();
+    const on = prev.name ? document.querySelector(`input[type=radio][name="${CSS.escape(prev.name)}"]:checked`) : prev.checked ? prev : null;
+    return on ? on.getAttribute("data-co-option") || clean(labelFor(on)) || on.value || "" : "";
   }
 
   function draft(title, fields) {
