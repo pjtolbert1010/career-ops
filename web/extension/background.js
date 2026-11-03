@@ -53,6 +53,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       chrome.tabs.sendMessage(sender.tab.id, { type: "status-relay", text: msg.text, kind: msg.kind, retry: msg.retry }, { frameId: 0 }).catch(() => {});
       return sendResponse({ ok: true });
     }
+    if (msg.type === "learn" && sender.tab) {
+      const job = await jobFor(sender.tab.id);
+      if (!job) return sendResponse({ error: "this tab was not opened by career-ops" });
+      try {
+        const r = await fetch(`${job.server}/api/apply/extension/learn`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: msg.items }) });
+        return sendResponse(await r.json().catch(() => ({ error: `career-ops answered ${r.status}` })));
+      } catch {
+        return sendResponse({ error: "couldn't reach career-ops; is the dashboard still running?" });
+      }
+    }
+    if (msg.type === "learn-all" && sender.tab) {
+      chrome.tabs.sendMessage(sender.tab.id, { type: "learn-relay" }).catch(() => {});
+      return sendResponse({ ok: true });
+    }
+    if (msg.type === "open-bank" && sender.tab) {
+      const job = await jobFor(sender.tab.id);
+      if (job) await chrome.tabs.create({ url: `${job.server}/answers`, index: sender.tab.index + 1 });
+      return sendResponse({ ok: true });
+    }
     if (msg.type === "retry" && sender.tab) {
       // The top frame's retry button: pass it to every frame (the top one ignores its own echo while busy).
       chrome.tabs.sendMessage(sender.tab.id, { type: "retry-relay" }).catch(() => {});

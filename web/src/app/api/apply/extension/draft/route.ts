@@ -9,6 +9,8 @@ import { buildAnswerPrompt } from "@/lib/apply/answer-prompt.mjs";
 import { runPlanner, type PlannerField } from "@/lib/apply/planner";
 import { extractJsonObject } from "@/lib/extract-json-object.mjs";
 import { readJsonObject } from "@/lib/json-body";
+import { findEntry, loadBank, normalizeQuestion } from "@/lib/apply/answer-bank.mjs";
+import { loadAnswers, lookupByLabel } from "@/lib/answers.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,16 +75,53 @@ export async function POST(req: Request) {
 
   const cvPath = await resolveSessionCv({ company, application, title });
   const cvSource = cvPath ? applyCvSource(careerOpsRoot(), cvPath) : null;
-  const prompt = buildAnswerPrompt({ title, fields, memory: readMemory().trim(), cvSource, profile: profileRef(careerOpsRoot()) });
-  log(`extension draft: "${title}" · ${fields.length} fields · app=${application ?? "-"} · cv=${cvSource ?? "none"}`);
 
-  const result = await runPlanner({ cliId: spec.id, spec, binPath, prompt, fieldCount: fields.length, cwd: careerOpsRoot(), t0, log });
-  if (result.refused) return Response.json({ error: result.refused }, { status: 500 });
-  const { obj, truncated } = extractJsonObject(result.buf);
-  if (!obj) {
-    log(`extension draft: unparseable output (code=${result.code} signal=${result.signal})`);
-    return Response.json({ error: result.buf.trim() ? "couldn't parse the planner's answer" : "planner produced no output" }, { status: 500 });
+  // Answers the user gave before. Short answers (choices, names, dates) are
+  // filled straight from the bank and never reach the planner; a saved essay
+  // is handed to the planner as the user's earlier answer to reuse or adapt,
+  // because "why this employer" text must not be pasted into another employer's form.
+  const bank = loadBank(careerOpsRoot());
+  let fixed: Record<string, unknown> = {};
+  try {
+    fixed = loadAnswers();
+  } catch {
+    /* no answers.yml */
   }
+  const fromBank: Record<string, { value: string; needs_confirmation: false; source: string }> = {};
+  const essays: string[] = [];
+  const toPlan: PlannerField[] = [];
+  for (const f of fields) {
+    const entry = findEntry(bank, f.label);
+    if (entry && f.type !== "textarea") {
+      fromBank[f.id] = { value: entry.answer, needs_confirmation: false, source: "bank" };
+      continue;
+    }
+    if (entry) essays.push(`- "${entry.question}": ${entry.answer}`);
+    const known = f.type !== "textarea" && f.type !== "file" ? lookupByLabel(normalizeQuestion(f.label), fixed as never) : null;
+    if (known && !known.sensitive && known.value.trim()) {
+      fromBank[f.id] = { value: known.value, needs_confirmation: false, source: "answers.yml" };
+      continue;
+    }
+    toPlan.push(f);
+  }
+  const memory = [readMemory().trim(), essays.length ? `Answers the user saved earlier to questions on this form. Reuse them; change only details specific to the other employer:\n${essays.join("\n")}` : ""].filter(Boolean).join("\n\n");
+  log(`extension draft: "${title}" · ${fields.length} fields · ${Object.keys(fromBank).length} from saved answers · app=${application ?? "-"} · cv=${cvSource ?? "none"}`);
+
+  let obj: Record<string, unknown> = {};
+  let truncated = false;
+  if (toPlan.length) {
+    const prompt = buildAnswerPrompt({ title, fields: toPlan, memory, cvSource, profile: profileRef(careerOpsRoot()) });
+    const result = await runPlanner({ cliId: spec.id, spec, binPath, prompt, fieldCount: toPlan.length, cwd: careerOpsRoot(), t0, log });
+    if (result.refused) return Response.json({ error: result.refused }, { status: 500 });
+    const parsed = extractJsonObject(result.buf);
+    if (!parsed.obj) {
+      log(`extension draft: unparseable output (code=${result.code} signal=${result.signal})`);
+      return Response.json({ error: result.buf.trim() ? "couldn't parse the planner's answer" : "planner produced no output" }, { status: 500 });
+    }
+    obj = parsed.obj as Record<string, unknown>;
+    truncated = parsed.truncated;
+  }
+  obj = { ...obj, ...fromBank };
 
   let cv: { name: string; base64: string } | null = null;
   if (cvPath) {
@@ -99,7 +138,7 @@ export async function POST(req: Request) {
   for (const f of fields) {
     const a = (obj as Record<string, unknown>)[f.id];
     const ans = a && typeof a === "object" ? (a as { value?: unknown; needs_confirmation?: unknown }) : { value: a };
-    const verdict = ans.needs_confirmation ? "NEEDS YOU" : ans.value != null && String(ans.value).trim() ? `answer (${String(ans.value).length} chars)` : "blank";
+    const verdict = fromBank[f.id] ? `saved answer (${fromBank[f.id].source})` : ans.needs_confirmation ? "NEEDS YOU" : ans.value != null && String(ans.value).trim() ? `answer (${String(ans.value).length} chars)` : "blank";
     log(`  ${f.id} [${f.type}${f.required ? "*" : ""}] "${f.label}"${f.options?.length ? ` {${f.options.length} options}` : ""} → ${verdict}`);
   }
   return Response.json({ answers: obj, truncated, cv });

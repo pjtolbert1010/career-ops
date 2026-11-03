@@ -35,15 +35,22 @@
         .t{font-weight:600;margin-bottom:2px}
         .x{position:absolute;top:6px;right:8px;background:none;border:0;color:#fff;font-size:15px;cursor:pointer}
         .r{margin-top:8px;padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;font:inherit;cursor:pointer}
-      </style><div class="b"><div class="t">career-ops</div><div class="m"></div><button class="r" hidden>Try blank fields again</button><button class="x" title="Hide">×</button></div>`;
+      </style><div class="b"><div class="t">career-ops</div><div class="m"></div><button class="r" hidden>Try blank fields again</button>
+        <button class="r s" hidden>Save my answers</button> <button class="r o">Open answer bank</button><button class="x" title="Hide">×</button></div>`;
       root.querySelector(".x").onclick = () => host.remove();
       root.querySelector(".r").onclick = () => retryBlank();
+      root.querySelector(".s").onclick = () => {
+        chrome.runtime.sendMessage({ type: "learn-all" }).catch(() => {});
+        learn(false);
+      };
+      root.querySelector(".o").onclick = () => chrome.runtime.sendMessage({ type: "open-bank" }).catch(() => {});
       (document.body || document.documentElement).appendChild(host);
     }
     const box = host.shadowRoot.querySelector(".b");
     box.className = `b ${kind}`;
     host.shadowRoot.querySelector(".m").textContent = text;
     host.shadowRoot.querySelector(".r").hidden = !retry;
+    if (filledAny || kind !== "info") host.shadowRoot.querySelector(".s").hidden = false;
     badgeText = text;
   }
   if (TOP) {
@@ -54,7 +61,65 @@
       }
       if (msg.type === "retry-relay") retryBlank(true);
     });
+  } else {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === "retry-relay") retryBlank(true);
+      if (msg.type === "learn-relay") learn(false);
+    });
   }
+
+  // ---- answer bank: every field this frame read, by id, so what the user
+  // ends up answering can be saved to career-ops and reused on the next form.
+  const known = new Map();
+  function currentValue(f) {
+    if (f.type === "radio") {
+      const on = f.group.find((r) => r.checked);
+      return on ? on.getAttribute("data-co-option") || on.value || "" : "";
+    }
+    if (f.type === "checkbox") return f.el.checked ? "true" : "false";
+    if (f.type === "select" && f.combobox) {
+      const shown = f.el.closest('[class*="select__"], .select-shell')?.querySelector('[class*="single-value" i]');
+      return (shown?.textContent || f.el.value || "").trim();
+    }
+    if (f.type === "select") return f.el.selectedIndex > 0 ? (f.el.options[f.el.selectedIndex].textContent || "").trim() : "";
+    return (f.el.value || "").trim();
+  }
+  function collect() {
+    const items = [];
+    for (const f of known.values()) {
+      const el = f.group ? f.group[0] : f.el;
+      if (f.type === "file" || !el || !document.contains(el)) continue;
+      // A bare "Speak" / "Read" checkbox means nothing without its question.
+      if (f.type === "checkbox" && f.label.length < 12) continue;
+      const value = currentValue(f);
+      if (value && f.label) items.push({ label: f.label, type: f.type, value, options: f.options });
+    }
+    return items;
+  }
+  function learn(silent) {
+    const items = collect();
+    if (!items.length) {
+      if (!silent && TOP) badge("No answered fields to save on this page yet.", "info", false);
+      return;
+    }
+    chrome.runtime.sendMessage({ type: "learn", items }, (r) => {
+      if (silent || chrome.runtime.lastError || !r) return;
+      if (r.error) return badge(`Couldn't save answers: ${r.error}`, "err");
+      badge(`Saved to career-ops: ${r.added} new, ${r.updated} updated (${r.total} questions in your bank). Next forms reuse them.`, "ok");
+    });
+  }
+  // Moving on (Next, Save & Continue, Submit) means the page's answers are
+  // final: save them quietly. This only listens; it never clicks anything.
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!known.size) return;
+      const b = e.target && e.target.closest && e.target.closest("button, input[type=submit], input[type=button], a[role=button], [role=button]");
+      const text = b ? (b.innerText || b.value || b.getAttribute("aria-label") || "").trim() : "";
+      if (/^(next|continue|save|save (and|&) continue|submit|submit application|review|apply)\b/i.test(text)) learn(true);
+    },
+    true,
+  );
 
   // Forget every field this frame read that is still blank, so the next scan
   // drafts them again. Filled fields stay tagged and are never touched. The
@@ -345,6 +410,7 @@
       if (TOP && !filledAny && !badgeText) badge("Waiting for the application form. Click the site's Apply button if it has one.");
       return;
     }
+    fields.forEach((f) => known.set(f.id, f));
     busy = true;
     batch += 1;
     badge(`Drafting answers for ${todo.length} fields. This can take a minute or two.`);

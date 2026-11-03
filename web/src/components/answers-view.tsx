@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, Check } from "lucide-react";
+import { AnswerBankView } from "@/components/answer-bank-view";
 
 type Entry = { value: string; labels: string[]; sensitive?: boolean };
 type Answers = Record<string, Record<string, Entry>>;
@@ -39,5 +40,6 @@ export function AnswersView() {
         </div>;
       })}</div>
     </section>)}</div>
+    <AnswerBankView />
   </main>;
 }
