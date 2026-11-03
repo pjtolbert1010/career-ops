@@ -26,6 +26,7 @@ export function pipelineQuery(params, search) {
 
 // INBOX (the triage queue) is the default tab; the rest filter the tracker.
 export const PIPELINE_TABS = /** @type {const} */ ([
+  "QUEUE",
   "INBOX",
   "ALL",
   "EVALUATED",

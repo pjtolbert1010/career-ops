@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/company-logo";
 import { CANONICAL_STATES, scoreNum, scoreTone } from "@/lib/format";
 import { StatusSelect } from "@/components/status-select";
-import { applicationKey, applySavedStatus, saveStatuses } from "@/lib/pipeline-status.mjs";
+import { applicationKey, applySavedStatus, saveStatuses, saveStatus } from "@/lib/pipeline-status.mjs";
 import { InboxTriage } from "@/components/inbox/inbox-triage";
 import { cn } from "@/lib/cn";
 import { companyPresentation, companySearchText } from "@/lib/company-presentation.mjs";
@@ -22,6 +22,7 @@ import { COMPARE_MAX } from "@/lib/pipeline-compare.mjs";
 import { postingHref, postingLabel } from "@/lib/posting-url.mjs";
 import { trackerCsv, trackerCsvFilename } from "@/lib/tracker-csv.mjs";
 import { trackerEmptyMessage } from "@/lib/tracker-empty.mjs";
+import { queueRows } from "@/lib/queue-filter.mjs";
 
 type Tab = (typeof PIPELINE_TABS)[number];
 
@@ -57,7 +58,7 @@ export function PipelineView({
   // The URL is the SINGLE source of truth for tab/min/sort/dir, so the home stat
   // tiles' deep links AND the assistant's filterPipeline/navigate actions drive
   // the table identically (no useState mirror → no desync).
-  const tab: Tab = pipelineTab(params.get("tab"));
+  const tab: Tab = params.get("tab") ? pipelineTab(params.get("tab")) : "QUEUE";
   const visibleTab = isPending && pendingTab ? pendingTab : tab;
   const pMin = parseFloat(params.get("min") ?? "");
   const minFilter: number | null = Number.isFinite(pMin) ? pMin : null;
@@ -113,7 +114,8 @@ export function PipelineView({
   const filtered = useMemo(() => {
     if (tab === "INBOX") return [];
     let rows = visibleApplications;
-    if (tab !== "ALL") rows = rows.filter((r) => rowOnPipelineTab(r.status, tab));
+    if (tab === "QUEUE") rows = queueRows(rows, scoreNum);
+    else if (tab !== "ALL") rows = rows.filter((r) => rowOnPipelineTab(r.status, tab));
     if (minFilter != null) {
       rows = rows.filter((r) => {
         const n = scoreNum(r.score);
@@ -126,6 +128,7 @@ export function PipelineView({
     }
     // scoreNum is the real score parser (it handles the tracker's "4.2/5"
     // cells); sortRows takes it rather than keeping a second copy (#4333).
+    if (tab === "QUEUE") return rows;
     return sortRows(
       rows,
       sort,
@@ -210,7 +213,9 @@ export function PipelineView({
       <div className="mt-6 flex flex-wrap gap-1 border-b border-border">
         {PIPELINE_TABS.map((t) => {
           const count =
-            t === "INBOX"
+            t === "QUEUE"
+              ? queueRows(visibleApplications, scoreNum).length
+              : t === "INBOX"
               ? inboxCount
               : t === "ALL"
                 ? visibleApplications.length
@@ -222,7 +227,7 @@ export function PipelineView({
               type="button"
               ref={tab === t ? activeTab : undefined}
               aria-pressed={visibleTab === t}
-              onClick={() => setParams({ tab: t === "INBOX" ? null : t })}
+              onClick={() => setParams({ tab: t === "QUEUE" ? null : t })}
               className={cn(
                 // gap-1, not a whitespace text node: flex containers drop
                 // whitespace-only anonymous items, which rendered "INBOX0".
@@ -401,7 +406,13 @@ export function PipelineView({
                     <Badge tone={scoreTone(r.score)}>{r.score || "—"}</Badge>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-muted">
-                    <StatusSelect
+                    {tab === "QUEUE" ? (
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => posting && window.open(posting, "_blank", "noopener,noreferrer")} disabled={!posting} className="text-xs text-brand-text hover:underline disabled:text-faint">Open posting</button>
+                        <button type="button" onClick={async () => { const saved = await saveStatus(r.n, r.status, "Applied"); if (saved) { showSavedStatus({ key, status: saved }); router.refresh(); } }} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-surface-hover">Applied</button>
+                        <button type="button" onClick={async () => { const saved = await saveStatus(r.n, r.status, "SKIP"); if (saved) { showSavedStatus({ key, status: saved }); router.refresh(); } }} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-surface-hover">Skip</button>
+                      </div>
+                    ) : <StatusSelect
                       n={r.n}
                       current={r.status}
                       inline
@@ -419,7 +430,7 @@ export function PipelineView({
                           router.refresh();
                         });
                       }}
-                    />
+                    />}
                   </td>
                   <td className="hidden whitespace-nowrap px-4 py-3 text-faint tabular-nums lg:table-cell">{r.date}</td>
                   </tr>
