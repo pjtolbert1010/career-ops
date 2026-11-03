@@ -53,7 +53,7 @@ export function ApplyButton({
         // off the handler's own location: usePathname() drops the query and
         // hash, which is where the list filter and the row anchor live.
         const { pathname, search, hash } = window.location;
-        apply.open(url!, { prefill: true, company, n, from: `${pathname}${search}${hash}` });
+        apply.open(url!, { prefill: true, autoFill: true, company, n, from: `${pathname}${search}${hash}` });
         router.push("/apply");
       }}
       className={

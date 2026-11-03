@@ -5,6 +5,7 @@ import { extractForm, type ApplyField, type ExtractedForm } from "./extract";
 import { parseGreenhouse, fetchGreenhouseSchema } from "./greenhouse";
 import { statusBlock, dismissConsent, tryApplyTrigger, dropNewTabs, classifyEmpty, captchaWarning, multiStepInfo, verifyFill, type ApplyIssue } from "./diagnose";
 import { interpretFormWithAgent } from "./agent-interpret";
+import { hideWindow, loadStorageState, saveStorageState, showWindow, waitForHuman } from "./login-handoff";
 import { pickComboboxOption } from "./option-match.mjs";
 import { isResumeLabel } from "./resume-label.mjs";
 import { resolveCli } from "../clis";
@@ -193,7 +194,8 @@ export async function openSession(url: string, cliId?: string, forceAgent?: bool
   prune();
   if (globalThis.__coIdleTimer) clearTimeout(globalThis.__coIdleTimer); // someone's active
   const browser = await headedBrowser();
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // Saved job-site sign-ins ride along, so a site signed into once stays signed in.
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState: loadStorageState() });
   await installApplyEgressGuard(context);
   context.setDefaultTimeout(8000); // no single action hangs the whole open/fill
   const page = await context.newPage();
@@ -225,36 +227,74 @@ export async function openSession(url: string, cliId?: string, forceAgent?: bool
   }
   await snap(); // first paint
   const sBlock = statusBlock(resp?.status(), resp ? resp.headers() : {});
-  if (sBlock) return abort(sBlock.message);
+  // A 401 is a sign-in, which the user can finish in the window below.
+  if (sBlock && sBlock.code !== "auth-required") return abort(sBlock.message);
 
   // 2) Clear any cookie/consent overlay that hides the form (never a hard block).
   const consentIssues = await dismissConsent(page);
 
-  // 3) Wait for real form controls to render (SPA hydrate) in ANY frame (embedded
-  //    forms), then settle. More reliable than a fixed sleep.
   const formSel = 'form input, form textarea, input[type=file], [role=combobox], [class*="application-form" i], #application_form';
-  await Promise.race(page.frames().map((f) => f.waitForSelector(formSel, { timeout: 12_000 }).catch(() => null))).catch(() => {});
-  await page.waitForTimeout(1200);
-  await dropNewTabs(page); // make any "Apply" link/popup navigate in OUR tab
-  await snap(); // settled
+  let frame: Frame = page.mainFrame();
+  let form: ExtractedForm = { title: "", url, fields: [] };
+  const readForm = async () => {
+    // 3) Wait for real form controls to render (SPA hydrate) in ANY frame (embedded
+    //    forms), then settle. More reliable than a fixed sleep.
+    await Promise.race(page.frames().map((f) => f.waitForSelector(formSel, { timeout: 12_000 }).catch(() => null))).catch(() => {});
+    await page.waitForTimeout(1200);
+    await dropNewTabs(page); // make any "Apply" link/popup navigate in OUR tab
+    await snap(); // settled
 
-  // 4) Extract from the richest frame; if nothing yet, try (a) a scroll pass to
-  //    trigger lazy/virtualized fields, then (b) clicking an "Apply" button (SPA;
-  //    never a submit) — re-settling and re-extracting after each.
-  let { frame, form } = await pickFormFrame(page);
-  // "no usable form yet" = 0 fields OR only non-application fields (e.g. a search
-  // box on a job-description page) — both should trigger the recovery, not just 0.
+    // 4) Extract from the richest frame; if nothing yet, try (a) a scroll pass to
+    //    trigger lazy/virtualized fields, then (b) clicking an "Apply" button (SPA;
+    //    never a submit) — re-settling and re-extracting after each.
+    ({ frame, form } = await pickFormFrame(page));
+    // "no usable form yet" = 0 fields OR only non-application fields (e.g. a search
+    // box on a job-description page) — both should trigger the recovery, not just 0.
+    if (!looksLikeApplicationForm(form)) {
+      await nudgeScroll(page);
+      await page.waitForTimeout(400);
+      ({ frame, form } = await pickFormFrame(page));
+    }
+    if (!noApplyBtn && !looksLikeApplicationForm(form) && (await tryApplyTrigger(page))) {
+      await Promise.race(page.frames().map((f) => f.waitForSelector(formSel, { timeout: 6_000 }).catch(() => null))).catch(() => {});
+      await page.waitForTimeout(800);
+      await dropNewTabs(page);
+      ({ frame, form } = await pickFormFrame(page));
+      await snap();
+    }
+  };
+  await readForm();
+
+  // 4b) A sign-in or "are you human" page stands between us and the form (often
+  //     only after clicking Apply). Bring the window on-screen, let the user get
+  //     past it themselves, save the sign-in, and read the form again.
   if (!looksLikeApplicationForm(form)) {
-    await nudgeScroll(page);
-    await page.waitForTimeout(400);
-    ({ frame, form } = await pickFormFrame(page));
-  }
-  if (!noApplyBtn && !looksLikeApplicationForm(form) && (await tryApplyTrigger(page))) {
-    await Promise.race(page.frames().map((f) => f.waitForSelector(formSel, { timeout: 6_000 }).catch(() => null))).catch(() => {});
-    await page.waitForTimeout(800);
-    await dropNewTabs(page);
-    ({ frame, form } = await pickFormFrame(page));
-    await snap();
+    const gate = await classifyEmpty(page, url);
+    if (gate.code === "login-wall" || gate.code === "bot-challenge") {
+      await showWindow(context, page);
+      if (!(await waitForHuman(page, gate.code))) {
+        return abort(
+          gate.code === "login-wall"
+            ? "Sign-in wasn't finished within 4 minutes. Press Apply again when you're ready to sign in."
+            : "The human check wasn't finished within 4 minutes. Press Apply again to retry.",
+        );
+      }
+      if (gate.code === "login-wall") await saveStorageState(context);
+      await hideWindow(context, page);
+      await dismissConsent(page);
+      await readForm();
+      // Some sites land on a dashboard after sign-in instead of returning to the job.
+      if (!looksLikeApplicationForm(form)) {
+        try {
+          await gotoResilient(page, url);
+        } catch (e) {
+          await context.close().catch(() => {});
+          if (SESSIONS.size === 0) scheduleIdleClose();
+          throw e;
+        }
+        await readForm();
+      }
+    }
   }
   await enrichFromAts(url, form.fields); // clean labels + real options for known ATS (Greenhouse)
   await snap();
@@ -334,7 +374,8 @@ export async function newDrivePage(url: string): Promise<{ page: Page; context: 
   await assertSafeApplyUrl(url);
   if (globalThis.__coIdleTimer) clearTimeout(globalThis.__coIdleTimer);
   const browser = await headedBrowser();
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // Saved job-site sign-ins ride along, so a site signed into once stays signed in.
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState: loadStorageState() });
   await installApplyEgressGuard(context);
   context.setDefaultTimeout(8000);
   const page = await context.newPage();
@@ -579,16 +620,5 @@ export async function fillSession(
 export async function handoffSession(id: string): Promise<void> {
   const s = SESSIONS.get(id);
   if (!s) throw new Error("apply session not found");
-  try {
-    const cdp = await s.context.newCDPSession(s.page);
-    const { windowId } = (await cdp.send("Browser.getWindowForTarget")) as { windowId: number };
-    await cdp.send("Browser.setWindowBounds", {
-      windowId,
-      bounds: { left: 80, top: 60, width: 1280, height: 920, windowState: "normal" },
-    });
-    await cdp.detach().catch(() => {});
-  } catch {
-    /* CDP unavailable → bringToFront still raises it */
-  }
-  await s.page.bringToFront().catch(() => {});
+  await showWindow(s.context, s.page);
 }

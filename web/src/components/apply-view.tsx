@@ -101,7 +101,7 @@ export function ApplyView() {
       {/* opening: big magic hero + skeleton fields (no layout jump when real ones arrive) */}
       {opening && (
         <>
-          <ProcessingHero title="Reading your form…" subtitle="Opening the real application on your machine and reading every field." />
+          <ProcessingHero title="Reading your form…" subtitle="Opening the real application on your machine and reading every field. If a sign-in window opens, sign in there. Filling continues on its own." />
           <FieldSkeleton />
         </>
       )}

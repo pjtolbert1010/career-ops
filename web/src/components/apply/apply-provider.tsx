@@ -28,7 +28,7 @@ type ApplyCtx = {
   issues: ApplyIssue[];
   driveSteps: DriveStep[];
   error: string;
-  open: (url: string, opts?: { prefill?: boolean; company?: string; n?: string; from?: string }) => Promise<void>;
+  open: (url: string, opts?: { prefill?: boolean; autoFill?: boolean; company?: string; n?: string; from?: string }) => Promise<void>;
   prefill: () => Promise<void>;
   setAnswer: (idOrLabel: string, value: string) => void;
   fill: () => Promise<void>;
@@ -101,6 +101,9 @@ export function ApplyProvider({ children }: { children: React.ReactNode }) {
   // ready — driven by an effect (not a fragile setTimeout) so it can't race the
   // session response or a navigation.
   const pendingPrefill = useRef(false);
+  // Opened from an Apply button: fill the real form as soon as the drafts land.
+  const autoFill = useRef(false);
+  const pendingFill = useRef(false);
 
   // Stream the agentic drive (the AI reaching the form live) and finalize the
   // session when it succeeds → fields ready → auto-prefill fires.
@@ -161,9 +164,11 @@ export function ApplyProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const open = useCallback(async (u: string, opts?: { prefill?: boolean; company?: string; n?: string; from?: string }) => {
+  const open = useCallback(async (u: string, opts?: { prefill?: boolean; autoFill?: boolean; company?: string; n?: string; from?: string }) => {
     const gen = ++generation.current;
     dropFill();
+    autoFill.current = !!opts?.autoFill;
+    pendingFill.current = false;
     // Opening a second form abandons the first one's browser exactly the way
     // leaving the page does, so it is released here too.
     if (sessionId.current) closeSession(sessionId.current);
@@ -287,6 +292,8 @@ export function ApplyProvider({ children }: { children: React.ReactNode }) {
       }
       if (generation.current !== gen) return; // left mid-prefill
       if (!got && !sawError) setError("Pre-fill ended without answers — see the diagnostics log below.");
+      // Clean drafts on an Apply-button run go straight into the real form.
+      pendingFill.current = autoFill.current && got && !sawError;
       setStatus("ready");
     } catch (e) {
       if (generation.current !== gen) return; // left mid-prefill
@@ -354,6 +361,14 @@ export function ApplyProvider({ children }: { children: React.ReactNode }) {
     }
   }, [answers, fields]);
 
+  // Auto-fill once after a clean pre-fill, with the drafted answers now in state.
+  useEffect(() => {
+    if (status === "ready" && pendingFill.current) {
+      pendingFill.current = false;
+      void fill();
+    }
+  }, [status, fill]);
+
   // FULL-AGENT FILL — the agent fills the real form turn-by-turn from the verified
   // answers, streamed (drive panel), never submits, then hands off. Used as the
   // escalation when deterministic fill fails, or on demand.
@@ -395,6 +410,8 @@ export function ApplyProvider({ children }: { children: React.ReactNode }) {
     // that lands after this can't repopulate the page the user just left.
     generation.current += 1;
     dropFill();
+    autoFill.current = false;
+    pendingFill.current = false;
     if (sessionId.current) closeSession(sessionId.current);
     sessionId.current = null;
     companyRef.current = "";
