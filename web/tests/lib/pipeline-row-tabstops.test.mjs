@@ -26,8 +26,10 @@ test("pipeline-view skips # and role report links in the tab order", () => {
   assert.equal(withRole.length, 1, `expected one role link, got ${withRole.length}: ${JSON.stringify(withRole)}`);
   assert.match(withNum[0], /tabIndex=\{-1\}/, `# link must set tabIndex={-1}: ${withNum[0]}`);
   assert.match(withRole[0], /tabIndex=\{-1\}/, `role link must set tabIndex={-1}: ${withRole[0]}`);
-  const companyOpen = [...src.matchAll(/<Link\b[^>]*className="flex items-center[^"]*"[^>]*>/g)].map((m) => m[0]);
-  assert.equal(companyOpen.length, 1, `expected one company link, got ${companyOpen.length}`);
+  // Tracker rows link to detailHref; the separate "Applied" table further down
+  // has one link per row (company) and is not part of this check.
+  const companyOpen = [...src.matchAll(/<Link\b[^>]*href=\{detailHref\}[^>]*className="flex items-center[^"]*"[^>]*>/g)].map((m) => m[0]);
+  assert.equal(companyOpen.length, 1, `expected one tracker-row company link, got ${companyOpen.length}`);
   assert.doesNotMatch(companyOpen[0], /tabIndex=\{-1\}/, "company link must stay tabbable");
 });
 
