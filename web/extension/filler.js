@@ -519,6 +519,10 @@
   chrome.runtime.sendMessage({ type: "job" }, (job) => {
     if (chrome.runtime.lastError || !job) return;
     new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
+    // Many sites reveal the form after Apply by changing a class or style, or
+    // by showing a frame that already loaded hidden. Neither adds elements, so
+    // keep looking every few seconds until the first fill.
+    const poll = setInterval(() => (filledAny ? clearInterval(poll) : busy || scan()), 2500);
     schedule();
   });
 })();
