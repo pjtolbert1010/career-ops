@@ -27,3 +27,25 @@ export function visibleNavItems(followupsEnabled: boolean): NavItem[] {
 export function isActivePath(href: string, pathname: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
+
+// Editorial top nav (LuxNav): the six primary destinations, in order.
+export const PRIMARY_NAV: { href: string; label: string }[] = [
+  { href: "/reef", label: "Overview" },
+  { href: "/reef#openings", label: "Openings" },
+  { href: "/reef#review", label: "Ready for Review" },
+  { href: "/pipeline", label: "Applications" },
+  { href: "/documents", label: "Documents" },
+  { href: "/config", label: "Settings" },
+];
+
+// Everything else stays one tap away in the menu drawer.
+export const MORE_NAV: { href: string; label: string }[] = [
+  { href: "/answers", label: "Answers" },
+  { href: "/cv", label: "CV" },
+  { href: "/explore", label: "Explore" },
+  { href: "/portals", label: "Portals" },
+  { href: "/scheduled-scans", label: "Scheduled scans" },
+  { href: "/followups", label: "Follow-ups" },
+  { href: "/analytics", label: "Analytics" },
+  { href: "/jobs", label: "Worker history" },
+];

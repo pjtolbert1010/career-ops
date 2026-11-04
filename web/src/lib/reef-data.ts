@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import * as yaml from "js-yaml";
-import { careerOpsRoot, readApplications, readLinkedReport, readStatusLog, type Application } from "@/lib/career-ops";
+import path from "node:path";
+import { careerOpsRoot, readApplications, readInbox, readLinkedReport, readStatusLog, type Application } from "@/lib/career-ops";
 import { getProfilePath } from "@/lib/core/profile-path.mjs";
 import { canonicalizeStatus } from "@/lib/core/states";
 import { parseReport, scoreNum } from "@/lib/format";
@@ -59,7 +60,27 @@ export type ReefData = {
   shallows: { what: string; pay: string }[];
   targetLabel: string;
   counts: { confirmed: number; toVerify: number; applied: number };
+  /** Overview figures for the editorial home (additive). */
+  stats: { appliedThisWeek: number; interviews: number; inboxPending: number; evaluated: number };
+  /** Last scanner run, from data/scan-runs.tsv; null when no run is logged. */
+  lastScan: { at: string; status: string; found: number; newAdded: number; errors: number } | null;
 };
+
+/** Last row of data/scan-runs.tsv, read by header name. */
+const TAB = String.fromCharCode(9);
+function readLastScan(): ReefData["lastScan"] {
+  try {
+    const lines = fs.readFileSync(path.join(careerOpsRoot(), "data", "scan-runs.tsv"), "utf8").trim().split(String.fromCharCode(10)).map((l) => l.replace(String.fromCharCode(13), ""));
+    if (lines.length < 2) return null;
+    const head = lines[0].split(TAB);
+    const row = lines[lines.length - 1].split(TAB);
+    const get = (k: string) => row[head.indexOf(k)] ?? "";
+    const num = (k: string) => Number.parseInt(get(k), 10) || 0;
+    return { at: get("timestamp"), status: get("status"), found: num("found"), newAdded: num("new_added"), errors: num("errors") };
+  } catch {
+    return null;
+  }
+}
 
 const KINDS: CritterKind[] = ["crab", "octo", "puffer", "jelly", "star", "horse"];
 const COLORS = ["#ef5b4c", "#9b6bd6", "#f2b134", "#f48fb1", "#ff9e5e", "#ffb37a", "#e0703a", "#5c8ee6", "#b8a0ff", "#7ed6a8", "#ffd166"];
@@ -221,6 +242,13 @@ export async function readReefData(): Promise<ReefData> {
 
   jobs.sort((a, b) => ZONE_ORDER[a.zone] - ZONE_ORDER[b.zone] || b.fit - a.fit);
   applied.sort((a, b) => b.when.localeCompare(a.when));
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  let inboxPending = 0;
+  try {
+    inboxPending = readInbox(apps).filter((i) => !i.done).length;
+  } catch {
+    inboxPending = 0;
+  }
   return {
     jobs,
     applied,
@@ -231,5 +259,12 @@ export async function readReefData(): Promise<ReefData> {
       toVerify: jobs.filter((j) => j.zone === "kelp").length,
       applied: applied.length,
     },
+    stats: {
+      appliedThisWeek: applied.filter((a) => a.status === "Applied" && a.when >= weekAgo).length,
+      interviews: applied.filter((a) => a.status === "Interview" || a.status === "Offer").length,
+      inboxPending,
+      evaluated: jobs.length,
+    },
+    lastScan: readLastScan(),
   };
 }

@@ -5,7 +5,7 @@ import { isTheme, storedTheme, THEME_COLORS, THEME_STORAGE_KEY } from "../../src
 
 test("theme constants keep the persisted contract stable", () => {
   assert.equal(THEME_STORAGE_KEY, "career-ops:theme");
-  assert.deepEqual(THEME_COLORS, { light: "#eaf6f8", dark: "#04161f" });
+  assert.deepEqual(THEME_COLORS, { light: "#faf8f4", dark: "#0b141c" });
 });
 
 test("the literal bootstrap script stays pinned to the shared theme contract", async () => {

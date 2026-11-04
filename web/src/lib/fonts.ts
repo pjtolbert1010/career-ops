@@ -33,3 +33,15 @@ export const instrumentSerifItalic = localFont({
   variable: "--font-instrument-serif-italic",
   display: "swap",
 });
+
+// Display serif for the editorial (luxury) layout — Cormorant Garamond,
+// variable weight, vendored from @fontsource-variable (SIL OFL, see
+// assets/fonts/cormorant/OFL.txt) so nothing loads from a CDN.
+export const cormorant = localFont({
+  src: [
+    { path: "../assets/fonts/cormorant/cormorant-garamond-latin-wght-normal.woff2", weight: "300 700", style: "normal" },
+    { path: "../assets/fonts/cormorant/cormorant-garamond-latin-wght-italic.woff2", weight: "300 700", style: "italic" },
+  ],
+  variable: "--font-cormorant",
+  display: "swap",
+});

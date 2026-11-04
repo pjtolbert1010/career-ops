@@ -68,7 +68,7 @@ export default function DocumentsPage() {
 
   if (documents.length === 0) {
     return (
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Documents
@@ -91,7 +91,7 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Documents

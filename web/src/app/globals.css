@@ -6,17 +6,17 @@
    (mode-invariant, white text 5.6:1), sea-foam light / deep-ocean dark.
    ────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-brand: #0a7194;
-  --color-brand-200: #075a76; /* hover (darker, keeps white text AA) */
+  --color-brand: #2f6a6e; /* muted ocean teal — the one accent */
+  --color-brand-200: #24575b; /* hover (darker, keeps white text AA) */
   /* Near-black on the brand orange: 5.2:1 on brand, 8.3:1 on brand-200 hover
      (white was 3.14:1, an AA fail in BOTH themes since the button is the same).
      The brand orange itself is untouched — only what sits on top of it. */
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: hsl(195 86% 31% / 0.12);
-  --color-brand-secondary: #ff8a3d; /* reef coral */
+  --color-brand-soft: hsl(184 40% 31% / 0.09);
+  --color-brand-secondary: #a8895a; /* brushed gold, used sparingly */
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-serif: var(--font-cormorant), var(--font-instrument-serif), ui-serif, Georgia, serif;
   --font-display: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", var(--font-inter), system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 }
@@ -39,30 +39,30 @@
 }
 
 :root {
-  --bg: #eaf6f8; /* sea foam */
+  --bg: #faf8f4; /* off-white paper */
   --surface: #ffffff;
-  --surface-hover: #dceff3;
-  --border: hsl(192 30% 83%);
-  --fg: #0d2a3a; /* deep-water ink */
-  --muted: #2c4a58;
-  --faint: #4b6470; /* AA: ~5.9:1 on #fff */
-  --landing: #08384c; /* deep-sea headline */
-  --brand-text: #0a6584; /* brand for small text: 6.3 white / 5.8 sea foam */
-  --dot: 195 40% 40% / 0.10;
-  --pre-bg: #e1f1f4;
+  --surface-hover: #f2efe8;
+  --border: #e4e0d7; /* hairline */
+  --fg: #0e1a24; /* ink navy */
+  --muted: #3e4a54;
+  --faint: #5d6872; /* AA: ~5.6:1 on #fff */
+  --landing: #0e1a24;
+  --brand-text: #2a6064; /* AA: ~6.3:1 on paper */
+  --dot: 205 20% 30% / 0.06;
+  --pre-bg: #f2efe8;
   color-scheme: light;
 }
 
 .dark {
-  --bg: #04161f; /* midnight zone */
-  --surface: #0a2230;
-  --surface-hover: #10303f;
-  --border: #173d50;
-  --fg: #e6f6f9;
-  --muted: #a6c6d1;
-  --faint: #86aab7; /* AA: ~6:1 on surface */
-  --landing: #bde9f3; /* shallow-water headline */
-  --brand-text: #5cc8e6; /* bright teal for small text on dark water */
+  --bg: #0b141c; /* night ink */
+  --surface: #111d27;
+  --surface-hover: #182632;
+  --border: #23323e;
+  --fg: #eef0ee;
+  --muted: #b5bdc2;
+  --faint: #929ca4; /* AA: ~6:1 on surface */
+  --landing: #f3f1ec;
+  --brand-text: #8cc3c4;
   --dot: 190 40% 70% / 0.10;
   --pre-bg: #071c27;
   color-scheme: dark;

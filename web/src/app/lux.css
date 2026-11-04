@@ -1,0 +1,172 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Career Reef editorial ("lux") design system: the quiet-luxury layer.
+   Tokens: ink navy, paper, hairline, one muted teal accent, brushed gold
+   used only as a detail. Display serif = Cormorant Garamond (self-hosted).
+   Imported after globals.css from app/layout.tsx.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --lux-ink: #0e1a24;
+  --lux-ink-2: #1b2a36;
+  --lux-paper: #faf8f4;
+  --lux-white: #ffffff;
+  --lux-hair: #e4e0d7;
+  --lux-mute: #5d6872;
+  --lux-accent: #2f6a6e;
+  --lux-gold: #a8895a;
+  --lux-gold-text: #7a5f36; /* gold for small text: AA 5.6:1 on white */
+  --lux-serif: var(--font-cormorant), "Cormorant Garamond", ui-serif, Georgia, serif;
+  --lux-nav-h: 72px;
+  --lux-ease: cubic-bezier(.22, .61, .36, 1);
+  /* Type scale (fluid) */
+  --lux-t-hero: clamp(2.75rem, 1.6rem + 5vw, 6rem);
+  --lux-t-h2: clamp(2.1rem, 1.4rem + 2.8vw, 3.75rem);
+  --lux-t-h3: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  --lux-t-stat: clamp(3rem, 2rem + 4vw, 5.25rem);
+  /* Spacing */
+  --lux-s-section: clamp(4.5rem, 3rem + 7vw, 9rem);
+  --lux-s-gutter: clamp(1.25rem, .5rem + 3vw, 4rem);
+}
+.dark {
+  --lux-ink: #eef0ee;
+  --lux-ink-2: #d6dadc;
+  --lux-paper: #0b141c;
+  --lux-white: #111d27;
+  --lux-hair: #23323e;
+  --lux-mute: #a3acb3;
+  --lux-accent: #8cc3c4;
+  --lux-gold-text: #d2b78a;
+}
+
+.lux-page { background: var(--lux-paper); color: var(--lux-ink); }
+.lux-serif { font-family: var(--lux-serif); font-weight: 400; letter-spacing: -0.01em; font-variant-numeric: lining-nums; }
+.lux-eyebrow { font-size: 11px; font-weight: 500; letter-spacing: .28em; text-transform: uppercase; color: var(--lux-mute); }
+.lux-display { font-family: var(--lux-serif); font-weight: 400; line-height: 1.04; letter-spacing: -0.015em; color: var(--lux-ink); }
+.lux-display em { font-style: italic; font-weight: 400; }
+.lux-section { padding-block: var(--lux-s-section); padding-inline: var(--lux-s-gutter); }
+.lux-wrap { max-width: 1320px; margin-inline: auto; }
+.lux-lede { color: var(--lux-mute); font-weight: 300; line-height: 1.7; }
+
+/* Links: a hairline that draws in on hover. */
+.lux-link { position: relative; display: inline-flex; align-items: center; gap: .6em; min-height: 44px; color: inherit; text-decoration: none; font-size: 12px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; background: none; border: 0; padding: 0; cursor: pointer; }
+.lux-link > .lux-u { position: relative; }
+.lux-link > .lux-u::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform .6s var(--lux-ease); }
+.lux-link:hover > .lux-u::after, .lux-link:focus-visible > .lux-u::after, .lux-link[aria-current="page"] > .lux-u::after { transform: scaleX(1); }
+.lux-link:focus-visible { outline: 2px solid var(--lux-accent); outline-offset: 4px; }
+.lux-rule { display: inline-block; width: 2.5rem; height: 1px; background: currentColor; transition: width .6s var(--lux-ease); }
+.lux-link:hover .lux-rule { width: 3.5rem; }
+.lux-arrow { display: inline-block; transition: transform .5s var(--lux-ease); }
+a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
+
+/* Buttons: understated, thin border or ink fill, big tap targets. */
+.lux-btn { display: inline-flex; min-height: 52px; align-items: center; justify-content: center; gap: .75rem; padding: 0 1.75rem; border: 1px solid var(--lux-ink); border-radius: 0; background: transparent; color: var(--lux-ink); font-size: 12px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: background-color .4s var(--lux-ease), color .4s var(--lux-ease), border-color .4s var(--lux-ease); }
+.lux-btn:hover { background: var(--lux-ink); color: var(--lux-paper); }
+.lux-btn:focus-visible { outline: 2px solid var(--lux-accent); outline-offset: 3px; }
+.lux-btn-solid { background: var(--lux-ink); color: var(--lux-paper); }
+.lux-btn-solid:hover { background: var(--lux-accent); border-color: var(--lux-accent); color: #fff; }
+.lux-btn-light { border-color: rgba(255, 255, 255, .85); color: #fff; }
+.lux-btn-light:hover { background: #fff; color: #0e1a24; }
+.lux-btn-disabled, .lux-btn-disabled:hover { border-style: dashed; border-color: var(--lux-hair); background: transparent; color: var(--lux-mute); cursor: not-allowed; letter-spacing: .12em; text-align: center; padding-block: .5rem; }
+.lux-btn-sm { min-height: 44px; padding: 0 1.1rem; font-size: 11px; }
+@media (max-width: 640px) { .lux-btn:not(.lux-btn-sm) { min-height: 56px; width: 100%; } }
+
+/* Score badge: a thin ring with serif numerals. */
+.lux-badge { font-variant-numeric: lining-nums; display: inline-flex; align-items: baseline; gap: 3px; padding: .3rem .75rem; border: 1px solid var(--lux-hair); border-radius: 999px; font-family: var(--lux-serif); font-size: 1.15rem; line-height: 1; color: var(--lux-ink); background: var(--lux-white); white-space: nowrap; }
+.lux-badge small { font-family: var(--font-sans); font-size: 9px; letter-spacing: .18em; color: var(--lux-mute); }
+.lux-badge[data-top="true"] { border-color: var(--lux-gold); }
+.lux-tag { display: inline-flex; align-items: center; padding: .25rem .6rem; border: 1px solid var(--lux-hair); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--lux-mute); }
+
+/* Cards: product-collection feel, hover reveals actions. */
+.lux-card { position: relative; display: flex; flex-direction: column; background: var(--lux-white); border: 1px solid var(--lux-hair); transition: border-color .5s var(--lux-ease), box-shadow .5s var(--lux-ease); }
+.lux-card:hover, .lux-card:focus-within { border-color: color-mix(in srgb, var(--lux-ink) 28%, transparent); box-shadow: 0 30px 60px -40px rgba(14, 26, 36, .35); }
+.lux-card-actions { transition: opacity .5s var(--lux-ease), transform .5s var(--lux-ease); }
+@media (hover: hover) and (pointer: fine) {
+  .lux-card .lux-card-actions { opacity: 0; transform: translateY(6px); }
+  .lux-card:hover .lux-card-actions, .lux-card:focus-within .lux-card-actions { opacity: 1; transform: none; }
+}
+.lux-zoom { overflow: hidden; }
+.lux-zoom > * { transition: transform 1.6s var(--lux-ease); }
+.lux-zoom:hover > * { transform: scale(1.04); }
+
+/* Image slot: shows the photo when supplied, else a calm tonal plate. */
+.lux-plate { position: relative; background: linear-gradient(0deg, #142430, #142430); }
+.lux-plate img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Filter tabs */
+.lux-tabs { display: flex; flex-wrap: wrap; gap: .25rem 2rem; border-bottom: 1px solid var(--lux-hair); }
+.lux-tab { min-height: 48px; padding: 0; background: none; border: 0; border-bottom: 1px solid transparent; margin-bottom: -1px; color: var(--lux-mute); font-size: 11px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; cursor: pointer; transition: color .4s var(--lux-ease), border-color .4s var(--lux-ease); }
+.lux-tab:hover { color: var(--lux-ink); }
+.lux-tab[aria-selected="true"] { color: var(--lux-ink); border-bottom-color: var(--lux-ink); }
+.lux-tab:focus-visible { outline: 2px solid var(--lux-accent); outline-offset: 2px; }
+
+/* Nav: transparent over the hero, white with a hairline after scroll. */
+.lux-nav { position: fixed; inset-inline: 0; top: 0; z-index: 40; height: calc(var(--lux-nav-h) + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); color: var(--lux-ink); background: var(--lux-paper); border-bottom: 1px solid var(--lux-hair); transition: background-color .5s var(--lux-ease), color .5s var(--lux-ease), border-color .5s var(--lux-ease); }
+.lux-nav[data-over-hero="true"] { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .18); }
+.lux-nav a, .lux-nav button { color: inherit; }
+.lux-wordmark { font-family: var(--lux-serif); font-size: 1.6rem; font-weight: 400; letter-spacing: .02em; line-height: 1; text-decoration: none; white-space: nowrap; }
+.lux-wordmark em { font-style: italic; }
+.lux-main-pad { padding-top: calc(var(--lux-nav-h) + env(safe-area-inset-top)); }
+
+/* Hero */
+.lux-hero { position: relative; min-height: 100svh; display: flex; align-items: flex-end; overflow: hidden; color: #fff; background: #0e1a24 url("/media/hero-poster.jpg") center / cover no-repeat; }
+.lux-hero video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lux-hero-overlay { position: absolute; inset: 0; background: rgba(14, 26, 36, .45); }
+.lux-hero .lux-display { color: #fff; }
+.lux-hero .lux-eyebrow { color: rgba(255, 255, 255, .8); }
+
+/* Stat band */
+.lux-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.lux-stats > * + * { border-left: 1px solid var(--lux-hair); }
+@media (max-width: 767px) {
+  .lux-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lux-stats > * { border-left: 0 !important; }
+  .lux-stats > :nth-child(even) { border-left: 1px solid var(--lux-hair) !important; }
+  .lux-stats > :nth-child(n + 3) { border-top: 1px solid var(--lux-hair); }
+}
+.lux-stat-num { font-family: var(--lux-serif); font-size: var(--lux-t-stat); font-weight: 300; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--lux-ink); }
+
+/* Pipeline timeline */
+.lux-timeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: relative; }
+.lux-timeline::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 1px; background: var(--lux-hair); }
+.lux-dot { width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--lux-ink); background: var(--lux-paper); position: relative; }
+.lux-dot[data-on="true"] { background: var(--lux-ink); }
+@media (max-width: 767px) {
+  .lux-timeline { grid-template-columns: 1fr; }
+  .lux-timeline::before { left: 7px; right: auto; top: 0; bottom: 0; width: 1px; height: auto; }
+}
+
+/* Status atelier */
+.lux-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lux-mute); display: inline-block; }
+.lux-status-dot[data-tone="ok"] { background: var(--lux-accent); }
+.lux-status-dot[data-tone="run"] { background: var(--lux-gold); animation: lux-breathe 2.4s ease-in-out infinite; }
+.lux-status-dot[data-tone="err"] { background: #9b3b2f; }
+@keyframes lux-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* Footer */
+.lux-footer { background: #0b141c; color: #c9ced1; }
+.lux-footer a { color: #c9ced1; }
+
+/* Scroll reveal: fade + rise. JS adds .is-in. No-JS safe: only hidden once JS marks html. */
+.lux-js .lux-reveal { opacity: 0; transform: translateY(24px); transition: opacity 1.1s var(--lux-ease), transform 1.1s var(--lux-ease); }
+.lux-js .lux-reveal.is-in { opacity: 1; transform: none; }
+
+/* Drawers (menu / job detail) */
+.lux-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(14, 26, 36, .45); opacity: 0; pointer-events: none; transition: opacity .5s var(--lux-ease); }
+.lux-scrim.open { opacity: 1; pointer-events: auto; }
+.lux-drawer { position: fixed; top: 0; bottom: 0; z-index: 61; width: min(36rem, 100vw); overflow-y: auto; overscroll-behavior: contain; background: var(--lux-paper); color: var(--lux-ink); transition: transform .6s var(--lux-ease), visibility 0s linear .6s; visibility: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+.lux-drawer-right { right: 0; transform: translateX(105%); }
+.lux-drawer-left { left: 0; transform: translateX(-105%); width: min(26rem, 100vw); }
+.lux-drawer.open { transform: none; visibility: visible; transition: transform .6s var(--lux-ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-js .lux-reveal { opacity: 1; transform: none; transition: none; }
+  .lux-zoom > *, .lux-link > .lux-u::after, .lux-drawer, .lux-scrim, .lux-card-actions, .lux-arrow, .lux-rule { transition: none; }
+  .lux-status-dot[data-tone="run"] { animation: none; }
+  .lux-hero video { display: none; }
+}
+
+/* Phone tightening */
+.lux-link { white-space: nowrap; }
+@media (max-width: 640px) {
+  .lux-btn { letter-spacing: .14em; padding: 0 1.1rem; }
+  .lux-card-actions .lux-link { letter-spacing: .14em; }
+}

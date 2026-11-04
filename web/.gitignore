@@ -14,3 +14,6 @@ next-env.d.ts
 
 # agent session memory — internal notes, never in the public repo
 .claude/
+
+# Career Reef hero source clip (large; derived hero.* files are committed)
+public/media/hero-original.mp4
