@@ -130,7 +130,7 @@ export function fontIn(text) {
 /** "1-inch margins", "one inch margins", "margins of 1 inch". */
 export function marginsIn(text) {
   const t = squash(text);
-  const m = t.match(/(one|1|0?\.\d+|1\.\d+)\s*(?:-|\s)?\s*inch(?:es)?\s+margins?/i) || t.match(/margins?\s*(?:of|at|:|not less than|of at least|no less than|at least|no smaller than)?\s*(one|1|0?\.\d+|1\.\d+)\s*(?:-|\s)?\s*inch/i);
+  const m = t.match(/(one|1|0?\.\d+|1\.\d+)\s*(?:-|\s)?\s*(?:inch(?:es)?|["”″])\s*margins?/i) || t.match(/margins?\s*(?:of|at|:|not less than|of at least|no less than|at least|no smaller than)?\s*(one|1|0?\.\d+|1\.\d+)\s*(?:-|\s)?\s*inch/i);
   if (!m) return null;
   const v = m[1].toLowerCase() === "one" ? 1 : parseFloat(m[1]);
   return Number.isFinite(v) && v > 0.2 && v <= 2 ? v : null;
@@ -224,11 +224,39 @@ export function extractSoqInstructions(jdText) {
     block = end >= 0 ? rest.slice(0, end + 60) : rest.slice(0, 4000);
   }
 
+  // A written "Supplemental Questionnaire" is an SOQ under another name
+  // (JC-535245: "Please limit your answer to two pages maximum (Arial 12 pt
+  // font and 1” margins). 1. Describe ..."). The required-documents list then
+  // says only "See Supplemental Questionnaire information under Special
+  // Instructions", so the SOQ test above misses it. Count it only when its
+  // own section carries a written format (pages or font) and a numbered run of
+  // at least two questions: an online questionnaire has neither.
+  let supplemental = false;
+  if (startAt < 0) {
+    for (const m of t.matchAll(/Supplemental Questionnaire|Statement of Qualifications|\bSOQ\b/gi)) {
+      if (inDocs(m.index)) continue;
+      const window = t.slice(m.index, m.index + 2500);
+      const fmt = window.search(/\b(?:limit your (?:answer|response)s?|pages? (?:maximum|max|limit)|no more than \w+ pages?|\d+[- ]?(?:pt|point)\b|font)/i);
+      if (fmt < 0) continue;
+      const qs = promptsIn(window.slice(fmt));
+      if (qs.length < 2) continue;
+      startAt = m.index;
+      supplemental = true;
+      break;
+    }
+    if (startAt >= 0) {
+      const rest = t.slice(startAt);
+      const end = rest.slice(60).search(/\b(?:The following basis of eligibility|Application Instructions|Additional Application Instructions|Desirable Qualifications|Benefits Benefit|Contact Information|Equal Opportunity Employer|Who May Apply|How To Apply|Position Details|Department Information|Required Application Package Documents)\b/);
+      block = end >= 0 ? rest.slice(0, end + 60) : rest.slice(0, 4000);
+    }
+  }
+
   const scope = block || (soqRequired ? docs : "");
   const font = fontIn(scope);
   const coverLimit = coverInDocs ? pageLimitIn(docs.slice(docs.search(/Cover Letter/i), docs.search(/Cover Letter/i) + 220)) : null;
   return {
-    soq_required: Boolean(soqRequired),
+    soq_required: Boolean(soqRequired || supplemental),
+    soq_named_as: supplemental ? "Supplemental Questionnaire" : soqRequired ? "Statement of Qualifications" : null,
     cover_letter_required: Boolean(coverInDocs),
     cover_letter_page_limit: coverLimit,
     resume,

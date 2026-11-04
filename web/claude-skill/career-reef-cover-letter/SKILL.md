@@ -21,14 +21,29 @@ Career Reef refuses pages that another site, or you, open directly. The tab
 then shows `{"error":"cross-origin request refused (Sec-Fetch-Site: ...)"}`.
 That tab still belongs to Career Reef, so to open a Career Reef page:
 
-1. Open `http://localhost:3000` in a **new tab**. Never use the user's job
-   site tab for this.
+1. Open `http://localhost:3000` in a **new tab** (`tabs_create_mcp`, then
+   navigate that new tab). Never navigate the user's job site tab to
+   `localhost:3000`: a live application tab that leaves its page can lose
+   unsaved work and show "Confirm Form Resubmission". Before every
+   `navigate`, check the tab id is the Career Reef tab, not the job tab.
 2. Run this JavaScript in that new tab: `location.href = '/reef'`.
 
 If `localhost:3000` does not load at all, Career Reef is not running. Tell the
 user and stop. They start it with `npm run dev` in `C:\career-ops\web`.
 
 Run every `fetch('/api/...')` below **in the Career Reef tab**.
+
+## Reading the posting
+
+Read the **whole** posting, from the top to the last line, never one search
+hit or a truncated excerpt. Document rules often sit at the very end, under
+**Special Instructions**, after Desirable Qualifications and Benefits. In the
+job tab, read `document.body.innerText` in chunks (for example
+`.slice(0, 8000)`, then `.slice(8000, 16000)`, and so on) until a chunk comes
+back empty. Do not return URLs, cookies or link `href`s from that tab: the
+browser tool blocks any result that carries query-string or cookie data
+(`[BLOCKED: Cookie/query string data]`). Read text only. If `get_page_text`
+fails on the job tab, use the chunked `innerText` read instead.
 
 ## Step 1: Find the job
 
@@ -66,10 +81,16 @@ are the **only** facts you may use.
 
 ## Step 3: Gather the angle
 
-1. Read the posting (the job tab, or `posting_text`): role title, employer,
-   location, the top three or four requirements, the words the employer uses
+1. Read the whole posting (the job tab, or `posting_text`), to the end, as
+   "Reading the posting" says: role title, employer, location, the top three
+   or four requirements, the words the employer uses
    for its mission, and any rule for the letter (page limit, who to address,
    what to explain, such as "explain why you are interested").
+   For the letter's `city`: use the job's city from the posting. If the
+   posting states none, use the office city in its "Address for Mailing" or
+   "Drop-Off" block, and tell the user which one you used. While reading,
+   check for an SOQ too (career-reef-soq Step 2 lists the signs): a
+   CalCareers posting can need both, so offer **career-reef-soq** if it does.
 2. Ask the user, briefly: why this role or employer, what problem they would
    help solve, and anything they want included. Their answers go into
    `user_inputs` verbatim.
@@ -90,7 +111,12 @@ are the **only** facts you may use.
 - Follow `sources.house_rules` exactly (for example: never an em dash, and the
   sign-off it names).
 
-Show the full draft. Wait for the user's edits and OK before saving.
+Show the full draft, laid out exactly as it will be saved (opening,
+paragraphs, achievements, closing, sign-off). Wait for the user's explicit OK.
+The text you save in Step 5 must match the approved draft word for word: no
+paraphrasing, trimming or polishing between approval and save. If the save
+needs a change (over the page limit, a fact warning), show the changed text
+and get a new OK.
 
 ## Step 5: Save the PDF
 
@@ -118,7 +144,10 @@ await fetch('/api/docs/PIPELINE_NUMBER', { method: 'POST', headers: { 'Content-T
 ```
 
 - `page_limit`: the posting's limit, else 1.
-- `200` with `ok: true`: saved. Tell the user the file name and page count.
+- `200` with `ok: true`: saved. Check `fact_warnings` is empty; if not, show
+  each warning, fix the text with the user, and save again. Never attach a
+  letter with fact warnings. Tell the user the file name, page count, and
+  that `fact_warnings` is empty.
   Offer to open `view` (a Career Reef page, open it as described above).
 - `422` with `over_limit: true`: too long, nothing saved. Shorten and save
   again.
@@ -140,6 +169,11 @@ await fetch('/api/docs/PIPELINE_NUMBER', { method: 'POST', headers: { 'Content-T
    asks the user to sign in, ask them to, then continue. If the form sits in a
    frame from another site (an embedded Greenhouse or Lever form), open the
    frame's own URL in the tab first.
+   - **CalCareers:** from **My Job Applications**, click the **JC-xxxxxx**
+     link, then **Edit My Application**, then step **4) Application
+     Package**. Click the **Choose** or **Upload** link in the Cover Letter
+     row: the upload opens in a popup and its input appears only after that
+     click. That opens CalCareers' own popup, not the file picker.
 3. Do not click Choose File, Upload or Attach: they open a file picker you
    cannot use. Run this JavaScript **in the application tab**, with `url` and
    `name` from step 1:
@@ -155,7 +189,11 @@ var REPLACE = false;    // true only if the user asked to replace a file already
     root.querySelectorAll("*").forEach((el) => el.shadowRoot && all(el.shadowRoot, out));
     return out;
   };
-  const inputs = all(document);
+  // Visible inputs only (or inside an open popup): popup and SPA forms keep
+  // hidden copies. Greenhouse and Lever style their inputs hidden on purpose,
+  // so a hidden input is kept when its label names a resume or cover letter.
+  const named = (el) => /resume|cv\b|cover/i.test([el.name, el.id, el.getAttribute("aria-label")].join(" "));
+  const inputs = all(document).filter((el) => el.offsetParent !== null || el.closest("[role=dialog], .modal.show, .ui-dialog") || named(el));
   const own = (el) => {
     const bits = [el.name, el.id, el.getAttribute("aria-label"), el.getAttribute("title"), el.getAttribute("data-automation-id"), el.getAttribute("data-qa")];
     if (el.id) { const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`); if (l) bits.push(l.innerText); }
@@ -219,15 +257,21 @@ JSON.stringify(window.__careerReefCover);
      ask the user whether to paste the letter's text there.
    - `already has a file`: ask the user. Rerun with `REPLACE = true` only on
      their yes.
-   - `BLOCKED` (Greenhouse's job-boards.greenhouse.io always blocks it), or
-     anything else: tell the user to attach it themselves from `localFile`, or
-     to turn on the **Cover letter** switch in the career-ops Apply extension's
-     badge.
+   - `BLOCKED` (Greenhouse's job-boards.greenhouse.io always blocks it), a
+     file the page ignored (`input.files` still empty after the change event,
+     as CalCareers' popup did on JC-535245), or anything else: **stop, do not
+     retry in a loop.** Tell the user to attach it themselves from
+     `localFile`, or to turn on the **Cover letter** switch in the career-ops
+     Apply extension's badge.
 
 ## Rules
 
 - Never click Submit, Send, Apply, or the final Next or Review button. The
   user reviews the application and submits it.
+- Never fill EEO, demographic, disability or veteran questions. Leave them to
+  the user.
+- Never press Save & Review, Submit, or Next past the Application Package
+  step without the user's go-ahead.
 - Never invent a fact. Every claim comes from `sources` or the user's words in
   this chat, and Career Reef's fact check must pass.
 - Follow the user's `house_rules` and the posting's own rules for the letter.

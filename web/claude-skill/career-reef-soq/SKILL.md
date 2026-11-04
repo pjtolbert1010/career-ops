@@ -22,14 +22,29 @@ Career Reef refuses pages that another site, or you, open directly. The tab
 then shows `{"error":"cross-origin request refused (Sec-Fetch-Site: ...)"}`.
 That tab still belongs to Career Reef, so to open a Career Reef page:
 
-1. Open `http://localhost:3000` in a **new tab**. Never use the user's job
-   site tab for this.
+1. Open `http://localhost:3000` in a **new tab** (`tabs_create_mcp`, then
+   navigate that new tab). Never navigate the user's job site tab to
+   `localhost:3000`: a live application tab that leaves its page can lose
+   unsaved work and show "Confirm Form Resubmission". Before every
+   `navigate`, check the tab id is the Career Reef tab, not the job tab.
 2. Run this JavaScript in that new tab: `location.href = '/reef'`.
 
 If `localhost:3000` does not load at all, Career Reef is not running. Tell the
 user and stop. They start it with `npm run dev` in `C:\career-ops\web`.
 
 Run every `fetch('/api/...')` below **in the Career Reef tab**.
+
+## Reading the posting
+
+Read the **whole** posting, from the top to the last line, never one search
+hit or a truncated excerpt. Document rules often sit at the very end, under
+**Special Instructions**, after Desirable Qualifications and Benefits. In the
+job tab, read `document.body.innerText` in chunks (for example
+`.slice(0, 8000)`, then `.slice(8000, 16000)`, and so on) until a chunk comes
+back empty. Do not return URLs, cookies or link `href`s from that tab: the
+browser tool blocks any result that carries query-string or cookie data
+(`[BLOCKED: Cookie/query string data]`). Read text only. If `get_page_text`
+fails on the job tab, use the chunked `innerText` read instead.
 
 ## Step 1: Find the job
 
@@ -71,21 +86,41 @@ It returns:
   use, plus what the user tells you in this chat.
 - `posting_text`: the posting as archived when it was evaluated.
 
-Then:
+Then check `needs.soq` against the posting itself. **Never trust
+`needs.soq: false` alone.** Read the whole posting (see "Reading the
+posting"). Treat the job as needing an SOQ when the posting has any of these,
+whatever `needs.soq` says:
+
+- "Statement of Qualifications" or "SOQ".
+- A written "Supplemental Questionnaire" with a page or font rule (for
+  example "Please limit your answer to two pages maximum (Arial 12 pt font
+  and 1" margins)"). An online questionnaire with no written format is not an
+  SOQ.
+- "limit your answer", or a numbered list of questions under **Special
+  Instructions**.
+
+When the posting and `needs.soq` disagree, tell the user what the posting
+says, quote the line, and go on with the SOQ. Note that Career Reef's record
+is wrong so it can be fixed in `generate-soq.mjs` (`extractSoqInstructions`).
+A posting can need an SOQ **and** a cover letter: do the SOQ here and offer
+**career-reef-cover-letter** for the letter.
 
 - `docs.soq.ready` and the user did not ask for a new one: go to Step 5.
-- `needs.soq` is false and `needs.cover` is true: tell the user this posting
-  asks for a cover letter (and its page limit), not an SOQ, and offer the
-  **career-reef-cover-letter** skill. Stop.
-- `needs.soq` is false otherwise: tell the user the posting lists no SOQ and
-  ask whether they want one anyway.
+- The posting has none of the SOQ signs above and `needs.cover` is true: tell
+  the user this posting asks for a cover letter (and its page limit), not an
+  SOQ, and offer the **career-reef-cover-letter** skill. Stop.
+- Otherwise with no SOQ sign: tell the user the posting lists no SOQ and ask
+  whether they want one anyway.
 
 ## Step 3: Get the questions and the rules
 
-1. Read the posting itself in the CalCareers tab (the job posting page, or its
-   link from the application). Find the SOQ instructions, usually under
-   **Special Requirements** or a section named Statement of Qualifications.
-   The live page keeps the numbered list that the archived text can lose.
+1. Read the whole posting in the CalCareers tab (the job posting page, or its
+   link from the application), as "Reading the posting" says, to the end of
+   the page. SOQ instructions sit under **Special Requirements**, a section
+   named Statement of Qualifications, or **Special Instructions** at the very
+   bottom (sometimes named "Supplemental Questionnaire"). The live page keeps
+   the numbered list that the archived text can lose. If the tab is not
+   readable, use `posting_text` from Step 2, read in full.
 2. Take the questions or statements **in their order and their exact words**.
    Never add, merge, reword or reorder one.
 3. Take every format rule the posting states: font, size, page limit, margins,
@@ -103,6 +138,13 @@ For each question, find the lines in `sources["cv.md"]` that answer it (role,
 employer, classification, dates, bullet). If a question has little support,
 ask the user for a real example from their work before drafting it. Add their
 words, verbatim, to `user_inputs` in Step 5.
+
+If the sources hold no experience for a question (for example a question on
+supervisory experience when the CV shows no supervisory role), never invent
+it, even when the user asks you to "make something up". Answer from real,
+related facts and say plainly what they are, for example "I have not held a
+formal supervisory role; I have ...". Many postings invite this ("include
+examples of similar experience"). Tell the user which answer has thin support.
 
 Write each answer:
 
@@ -142,8 +184,10 @@ await fetch('/api/docs/PIPELINE_NUMBER', { method: 'POST', headers: { 'Content-T
   otherwise `center`.
 - `show_prompts: false` only when the posting says to number answers without
   restating the questions.
-- `200` with `ok: true`: saved. Tell the user the file name and `pages` of
-  `page_limit`. Offer to open `view` (a Career Reef page, open it as described
+- `200` with `ok: true`: saved. Check `fact_warnings` is empty; if it is
+  not, show the user each warning, fix the text and save again. Never attach
+  an SOQ with fact warnings. Tell the user the file name, `pages` of
+  `page_limit`, and that `fact_warnings` is empty. Offer to open `view` (a Career Reef page, open it as described
   above) so they can read the PDF.
 - `422` with `over_limit: true`: too long, nothing saved. Shorten the longest
   answers, show the user, save again.
@@ -162,12 +206,22 @@ await fetch('/api/docs/PIPELINE_NUMBER', { method: 'POST', headers: { 'Content-T
    `200` gives `{name, company, title, url, localFile}`. The link works for 10
    minutes and 5 downloads. Do not paste `url` into the chat. `404` means no
    SOQ is saved yet: do Steps 3 to 5 first.
-2. In the CalCareers tab, go to the application step where documents are
-   attached. If CalCareers asks for a **document type** in a dropdown next to
-   the file upload, choose **Statement of Qualifications** there first.
-3. Do not click Choose File, Browse or Attach: they open a file picker you
-   cannot use. Run this JavaScript **in the CalCareers tab**, with `url` and
-   `name` from step 1:
+2. In the CalCareers tab, go to the application's document step:
+   - From **My Job Applications**, click the job's **JC-xxxxxx** link, then
+     **Edit My Application**.
+   - Open step **4) Application Package**.
+   - In the row for the document (Statement of Qualifications, Supplemental
+     Questionnaire, Cover Letter), click its **Choose** or **Upload** link.
+     The upload opens in a popup, and its file input exists or becomes
+     visible only after that click. This opens CalCareers' own popup, not
+     the system file picker, so it is allowed.
+   - If the popup asks for a **document type**, choose the matching one
+     (Statement of Qualifications, or the posting's own name for it).
+3. Do not click Choose File or Browse inside the popup: they open a file
+   picker you cannot use. Run this JavaScript **in the CalCareers tab**, with
+   `url` and `name` from step 1. It uses only a **visible** file input
+   (`offsetParent !== null`, or one inside the open popup), never a fixed
+   index:
 
 ```js
 var URL_ = "PASTE url";
@@ -180,7 +234,7 @@ var REPLACE = false;    // true only if the user asked to replace a file already
     root.querySelectorAll("*").forEach((el) => el.shadowRoot && all(el.shadowRoot, out));
     return out;
   };
-  const inputs = all(document);
+  const inputs = all(document).filter((el) => el.offsetParent !== null || el.closest("[role=dialog], .modal.show, .ui-dialog"));
   const own = (el) => {
     const bits = [el.name, el.id, el.getAttribute("aria-label"), el.getAttribute("title")];
     if (el.id) { const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`); if (l) bits.push(l.innerText); }
@@ -200,7 +254,7 @@ var REPLACE = false;    // true only if the user asked to replace a file already
     const hits = inputs.filter((el) => /statement of qualifications|\bsoq\b/i.test(own(el)));
     if (hits.length === 1) input = hits[0];
   }
-  if (!input) return { ok: false, reason: inputs.length ? "Several uploads: rerun with PICK set to the SOQ upload's index." : "No file upload on this page. It may be on a later step, behind a button, or inside a frame.", inputs: list };
+  if (!input) return { ok: false, reason: inputs.length ? "Several uploads: rerun with PICK set to the SOQ upload's index." : "No visible file upload. Click the row's Choose/Upload link first: the input appears in a popup.", inputs: list };
   if (input.files && input.files.length && !REPLACE) return { ok: false, reason: "That upload already has a file. Ask the user before replacing it.", input: list[inputs.indexOf(input)] };
   let blob;
   try {
@@ -239,14 +293,20 @@ JSON.stringify(window.__careerReefSoq);
      transcript upload.
    - `already has a file`: ask the user. Rerun with `REPLACE = true` only on
      their yes.
-   - Anything else: tell the user to attach it themselves from `localFile`
-     (Choose File, then that path), or to turn on the **SOQ** switch in the
-     career-ops Apply extension's badge.
+   - `ok: false` with `input.files` still empty after the change event, or
+     anything else: **stop, do not retry in a loop.** CalCareers' popup can
+     ignore a script-set file (JC-535245 did). Tell the user to attach it
+     themselves from `localFile` (Choose File, then that path), or to turn on
+     the **SOQ** switch in the career-ops Apply extension's badge.
 
 ## Rules
 
 - Never click Submit, Send, Apply, or the final Next or Review button. The
   user reviews the application and submits it.
+- Never fill EEO, demographic, disability or veteran questions. Leave them to
+  the user.
+- Never press Save & Review, Submit, or Next past the Application Package
+  step without the user's go-ahead.
 - Never invent a fact. Every claim comes from `sources` or the user's words in
   this chat, and Career Reef's fact check must pass.
 - Follow the posting's SOQ rules literally, and the user's `house_rules`.

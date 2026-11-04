@@ -116,3 +116,24 @@ test("unstated or out-of-range format values fall back to the defaults", () => {
   assert.equal(f.page_limit, 2);
   assert.equal(f.margins_in, 1);
 });
+
+// JC-535245 (DWR): the SOQ is called a "Supplemental Questionnaire", the
+// required-documents list only points to Special Instructions, and the
+// numbered questions sit at the very end of the posting.
+const DWR = `Required Application Package Documents The following items are required to be submitted with your application. Resume is optional. It may be included, but is not required. Other - See Supplemental Questionnaire information under Special Instructions below. Other - Cover Letter Applicants requiring reasonable accommodations for the hiring interview process must request the necessary accommodations. Desirable Qualifications The ideal candidate would possess experience leading and developing staff. Special Instructions To be considered, submit a completed State application (STD. 678), cover letter, and Supplemental Questionnaire. The Supplemental Questionnaire is designed to elicit information regarding each applicant's abilities. Please limit your answer to two pages maximum (Arial 12 pt font and 1” margins). 1. Describe your experience leading organizational change initiatives and implementing process improvements. 2. Describe your experience managing contracts, monitoring deliverables, and ensuring compliance with policies and procedures. 3. Describe your supervisory experience, including workload management, staff development, and performance evaluations. The following basis of eligibility will be considered: List eligibility, transfer, LEAP, reinstatement, and SROA/Surplus.`;
+
+test("a written Supplemental Questionnaire under Special Instructions is an SOQ", () => {
+  const r = extractSoqInstructions(DWR);
+  assert.equal(r.soq_required, true);
+  assert.equal(r.soq_named_as, "Supplemental Questionnaire");
+  assert.equal(r.cover_letter_required, true);
+  assert.deepEqual(r.format, { font: "Arial", size_pt: 12, margins_in: 1, line_spacing: null, page_limit: 2 });
+  assert.equal(r.prompts.length, 3);
+  assert.equal(r.prompts[2].prompt, "Describe your supervisory experience, including workload management, staff development, and performance evaluations.");
+});
+
+test("an online Supplemental Questionnaire with no written format is not an SOQ", () => {
+  const r = extractSoqInstructions("Required Application Package Documents Resume is required. Other - Cover Letter Applicants requiring reasonable accommodations. Special Instructions Applicants must complete the online Supplemental Questionnaire at the link provided. Contact Information");
+  assert.equal(r.soq_required, false);
+  assert.equal(r.soq_named_as, null);
+});
