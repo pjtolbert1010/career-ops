@@ -1,7 +1,6 @@
+import { ReefHero } from "@/components/lux/reef-hero";
+
+// Same hero as the page, so the headline paints before the data arrives.
 export default function ReefLoading() {
-  return (
-    <div aria-label="Loading Reef Watch" className="lux-hero">
-      <div className="lux-hero-overlay" aria-hidden="true" />
-    </div>
-  );
+  return <ReefHero />;
 }

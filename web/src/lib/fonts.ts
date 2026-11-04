@@ -22,6 +22,8 @@ export const instrumentSerif = localFont({
   }],
   variable: "--font-instrument-serif",
   display: "swap",
+  // Fallback face only since the editorial redesign: not worth a preload.
+  preload: false,
 });
 
 export const instrumentSerifItalic = localFont({
@@ -32,6 +34,7 @@ export const instrumentSerifItalic = localFont({
   }],
   variable: "--font-instrument-serif-italic",
   display: "swap",
+  preload: false,
 });
 
 // Display serif for the editorial (luxury) layout — Cormorant Garamond,

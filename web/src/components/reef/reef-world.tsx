@@ -6,7 +6,7 @@ import type { ReefApplied, ReefData, ReefJob, ReefZone } from "@/lib/reef-data";
 import { cn } from "@/lib/cn";
 import { ApplyButton } from "@/components/apply-button";
 import { GeneratePdfButton } from "@/components/generate-pdf-button";
-import { HeroVideo } from "@/components/lux/hero-video";
+import { ReefHero } from "@/components/lux/reef-hero";
 import { DisplayHeading, Eyebrow, ImageSlot, Intro, PrimaryAction, Reveal, Section, StatFigure } from "@/components/lux/primitives";
 import { JobCard, workStyle } from "@/components/lux/job-card";
 import { StatusPanel } from "@/components/lux/status-panel";
@@ -229,7 +229,6 @@ export function ReefWorld({ data, slots }: { data: ReefData; slots: MediaSlots }
   const selected = data.jobs.find((j) => j.id === sel) ?? null;
   const ready = useMemo(() => data.jobs.filter(isPrepped), [data.jobs]);
   const shown = filter === "all" ? data.jobs : data.jobs.filter((j) => j.zone === filter);
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
   // The open job rides in the address bar (/reef?job=103), so Claude in
   // Chrome's career-reef-cv skill can tell which job was clicked, and a reload
@@ -284,21 +283,7 @@ export function ReefWorld({ data, slots }: { data: ReefData; slots: MediaSlots }
   return (
     <div className="reef-lux">
       {/* 1 · HERO */}
-      <HeroVideo>
-        <div className="flex max-w-3xl flex-col gap-6">
-          <Eyebrow>Reef Watch · {today}</Eyebrow>
-          <DisplayHeading as="h1" size="hero" em="curated.">
-            Your next role,
-            <br />
-          </DisplayHeading>
-          <p className="m-0 max-w-xl text-base font-light leading-relaxed text-white/85 sm:text-lg">
-            Every opening scored against your profile, every application prepared, nothing sent until you say so.
-          </p>
-          <div className="pt-2 text-white">
-            <PrimaryAction href="#openings">Review today&apos;s openings</PrimaryAction>
-          </div>
-        </div>
-      </HeroVideo>
+      <ReefHero />
 
       {/* 2 · AT A GLANCE */}
       <section aria-label="At a glance" className="border-b border-[var(--lux-hair)] bg-[var(--lux-white)] px-[var(--lux-s-gutter)]">
