@@ -61,6 +61,13 @@ export async function resolveTailoredCover(company?: string, applicationNumber?:
     return null;
   }
 
+  // A numbered letter (cover-095-…, written for one tracker row) never stands
+  // in for another row at the same company, whatever its role words say.
+  if (n) files = files.filter((f) => {
+    const own = f.toLowerCase().match(/^cover-(\d{1,5})-/);
+    return !own || parseInt(own[1], 10) === parseInt(n, 10);
+  });
+
   if (app) {
     const role = companySlug(app.role)?.slug;
     const wanted = role ? [role, role.slice(0, ROLE_SLUG_MAX)] : [];

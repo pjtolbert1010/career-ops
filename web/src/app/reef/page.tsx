@@ -3,10 +3,10 @@ import { readReefData } from "@/lib/reef-data";
 
 export const dynamic = "force-dynamic"; // always read fresh local files
 
-export default function ReefPage() {
+export default async function ReefPage() {
   return (
     <div className="px-4">
-      <ReefWorld data={readReefData()} />
+      <ReefWorld data={await readReefData()} />
     </div>
   );
 }

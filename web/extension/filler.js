@@ -22,6 +22,26 @@
   let filledAny = false;
   let timer = null;
 
+  // ---- which documents to attach. One switch each for the tailored CV, the
+  // Statement of Qualifications (CalCareers) and the cover letter, saved in
+  // the extension's storage so every frame and every job uses the same choice.
+  let toggles = { cv: true, soq: true, cover: true };
+  try {
+    chrome.storage.local
+      .get("docToggles")
+      .then((v) => {
+        if (v && v.docToggles) toggles = { ...toggles, ...v.docToggles };
+        const host = document.getElementById("career-ops-badge");
+        host?.shadowRoot?.querySelectorAll(".d input").forEach((box) => (box.checked = toggles[box.dataset.k] !== false));
+      })
+      .catch(() => {});
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && changes.docToggles && changes.docToggles.newValue) toggles = { ...toggles, ...changes.docToggles.newValue };
+    });
+  } catch {
+    /* storage unavailable: keep the defaults */
+  }
+
   // ---- status badge (top frame only; other frames relay through background)
   let badgeText = null;
   function badge(text, kind = "info", retry = false) {
@@ -41,9 +61,12 @@
         .b.ok{background:#166534}.b.warn{background:#92400e}.b.err{background:#991b1b}
         .t{font-weight:600;margin-bottom:2px}
         .x{position:absolute;top:6px;right:8px;background:none;border:0;color:#fff;font-size:15px;cursor:pointer}
+        .d{margin-top:8px;font-size:12px;opacity:.95}.d label{margin-right:6px;cursor:pointer;white-space:nowrap}.d input{vertical-align:-2px;margin:0 3px 0 0}
         .r{margin-top:8px;padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;font:inherit;cursor:pointer}
       </style><div class="b"><div class="t">career-ops</div><div class="m"></div><button class="r" hidden>Try blank fields again</button>
-        <button class="r s" hidden>Save my answers</button> <button class="r o">Open answer bank</button><button class="x" title="Hide">×</button></div>`;
+        <button class="r s" hidden>Save my answers</button> <button class="r o">Open answer bank</button>
+        <div class="d">Attach: <label><input type="checkbox" data-k="cv"> CV</label> <label><input type="checkbox" data-k="soq"> SOQ</label> <label><input type="checkbox" data-k="cover"> Cover letter</label></div>
+        <button class="x" title="Hide">×</button></div>`;
       root.querySelector(".x").onclick = () => host.remove();
       root.querySelector(".r").onclick = () => retryBlank();
       root.querySelector(".s").onclick = () => {
@@ -51,6 +74,13 @@
         learn(false);
       };
       root.querySelector(".o").onclick = () => chrome.runtime.sendMessage({ type: "open-bank" }).catch(() => {});
+      root.querySelectorAll(".d input").forEach((box) => {
+        box.checked = toggles[box.dataset.k] !== false;
+        box.onchange = () => {
+          toggles = { ...toggles, [box.dataset.k]: box.checked };
+          chrome.storage.local.set({ docToggles: toggles }).catch(() => {});
+        };
+      });
       (document.body || document.documentElement).appendChild(host);
     }
     const box = host.shadowRoot.querySelector(".b");
@@ -308,6 +338,30 @@
   // ---- filling
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const RESUME = /resume|résumé|\bcv\b|curr[ií]cul(?:um|o)|lebenslauf/iu;
+  const SOQ = /statement\s+of\s+qualifications?|\bsoq\b/i;
+  const COVER = /cover\s*letter|letter\s+of\s+(?:interest|intent)|\bcover\b/i;
+  const DOC_NAMES = { cv: "tailored CV", soq: "Statement of Qualifications", cover: "cover letter" };
+  function kindOf(text) {
+    if (SOQ.test(text)) return "soq";
+    if (COVER.test(text)) return "cover";
+    if (RESUME.test(text)) return "cv";
+    return null;
+  }
+  // Which document a file upload wants: its own label first, then a document
+  // type picked in the same dialog (CalCareers asks for the type in a select
+  // next to a plain "Choose File").
+  function docKind(f) {
+    const own = kindOf(`${f.label} ${f.el.id || ""} ${f.el.name || ""} ${f.el.getAttribute("aria-label") || ""}`);
+    if (own) return own;
+    const box = f.el.closest("form, [role=dialog], .modal, fieldset");
+    if (!box) return null;
+    for (const sel of box.querySelectorAll("select")) {
+      const opt = sel.options[sel.selectedIndex];
+      const k = opt && sel.selectedIndex > 0 ? kindOf(opt.textContent || "") : null;
+      if (k) return k;
+    }
+    return null;
+  }
 
   function setNative(el, value) {
     const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : el.tagName === "SELECT" ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
@@ -349,13 +403,15 @@
     if (title) el.title = title;
   }
 
-  async function fillOne(f, value, cv) {
+  async function fillOne(f, value, res) {
     if (f.type === "file") {
-      const what = `${f.label} ${f.el.id || ""} ${f.el.name || ""}`;
-      if (!cv || !RESUME.test(what) || /cover/i.test(what)) return false;
-      const bytes = Uint8Array.from(atob(cv.base64), (c) => c.charCodeAt(0));
+      const kind = docKind(f);
+      if (!kind || toggles[kind] === false) return false;
+      const doc = res && res[kind];
+      if (!doc || !doc.base64) return false;
+      const bytes = Uint8Array.from(atob(doc.base64), (c) => c.charCodeAt(0));
       const dt = new DataTransfer();
-      dt.items.add(new File([bytes], cv.name, { type: "application/pdf" }));
+      dt.items.add(new File([bytes], doc.name, { type: "application/pdf" }));
       f.el.files = dt.files;
       f.el.dispatchEvent(new Event("input", { bubbles: true }));
       f.el.dispatchEvent(new Event("change", { bubbles: true }));
@@ -422,7 +478,7 @@
     return on ? on.getAttribute("data-co-option") || clean(labelFor(on)) || on.value || "" : "";
   }
 
-  function draft(title, fields) {
+  function draft(title, fields, docs = []) {
     return new Promise((resolve) => {
       const port = chrome.runtime.connect({ name: "draft" });
       const ping = setInterval(() => {
@@ -443,7 +499,7 @@
       };
       port.onMessage.addListener(done);
       port.onDisconnect.addListener(() => done({ error: "the extension restarted while drafting; reload the page to try again" }));
-      port.postMessage({ type: "draft", title, fields });
+      port.postMessage({ type: "draft", title, fields, docs });
     });
   }
 
@@ -543,7 +599,9 @@
     busy = true;
     batch += 1;
     badge(`Drafting answers for ${todo.length} fields. This can take a minute or two.`);
-    const res = await draft(document.title, todo.map(({ id, type, label, required, options, maxLength }) => ({ id, type, label, required, options, maxLength })));
+    const uploads = todo.filter((f) => f.type === "file").map((f) => docKind(f)).filter(Boolean);
+    const wants = [...new Set(uploads.filter((k) => k !== "cv" && toggles[k] !== false))];
+    const res = await draft(document.title, todo.map(({ id, type, label, required, options, maxLength }) => ({ id, type, label, required, options, maxLength })), wants);
     if (stopped) {
       busy = false;
       return;
@@ -583,7 +641,7 @@
         continue;
       }
       try {
-        if (await fillOne(f, value, res.cv)) {
+        if (await fillOne(f, value, res)) {
           filled += 1;
           mark(target, "#16a34a");
           if (f.el && !isChoice(f) && f.type !== "file") typed.push([f, value]);
@@ -598,7 +656,7 @@
     for (const [f, value] of typed) {
       if (document.contains(f.el) && !f.el.value) {
         try {
-          await fillOne(f, value, res.cv);
+          await fillOne(f, value, res);
         } catch {
           /* leave it for the user */
         }
@@ -615,7 +673,11 @@
     const extra =confirm ? ` ${confirm} outlined in orange need your answer.` : "";
     const skipped = notNeeded ? ` ${notNeeded} "if yes, explain" left blank (answered No).` : "";
     const left = optional ? ` ${optional} optional left blank.` : "";
-    badge(`Filled ${filled} of ${todo.length - notNeeded - optional} fields.${extra}${skipped}${left} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled + notNeeded + optional < todo.length);
+    const missingDocs = [...new Set(uploads.filter((k) => toggles[k] !== false && !(res && res[k])))];
+    const docNote = missingDocs.length
+      ? ` No ${missingDocs.map((k) => DOC_NAMES[k]).join(" or ")} saved for this job yet${missingDocs.includes("soq") ? ": ask Claude in Chrome to use career-reef-soq" : missingDocs.includes("cover") ? ": ask Claude in Chrome to use career-reef-cover-letter" : ""}, then click Try blank fields again.`
+      : "";
+    badge(`Filled ${filled} of ${todo.length - notNeeded - optional} fields.${extra}${skipped}${left}${docNote} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled + notNeeded + optional < todo.length);
     busy = false;
   }
 

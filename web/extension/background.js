@@ -142,7 +142,9 @@ chrome.runtime.onConnect.addListener((port) => {
       const r = await fetch(`${job.server}/api/apply/extension/draft`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: msg.title, fields: msg.fields, cliId: job.cliId, company: job.company, application: job.n }),
+        // docs: the extra documents the form has uploads for and the user's
+        // toggles allow (the Statement of Qualifications, the cover letter).
+        body: JSON.stringify({ title: msg.title, fields: msg.fields, cliId: job.cliId, company: job.company, application: job.n, docs: Array.isArray(msg.docs) ? msg.docs.filter((k) => k === "soq" || k === "cover") : [] }),
       });
       const data = await r.json().catch(() => ({ error: `career-ops answered ${r.status}` }));
       port.postMessage(r.ok ? data : { error: data.error || `career-ops answered ${r.status}` });

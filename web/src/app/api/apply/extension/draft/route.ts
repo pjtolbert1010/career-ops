@@ -12,6 +12,8 @@ import { readJsonObject } from "@/lib/json-body";
 import { findEntry, loadBank, normalizeQuestion } from "@/lib/apply/answer-bank.mjs";
 import { loadAnswers, lookupByLabel, lookupInLabel } from "@/lib/answers.mjs";
 import { eeoDecline } from "@/lib/apply/eeo-decline.mjs";
+import { findApplication } from "@/lib/career-ops";
+import { handoffName, tailoredDocFor } from "@/lib/apply/docs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +50,7 @@ function cleanFields(raw: unknown): PlannerField[] | null {
 }
 
 export async function POST(req: Request) {
-  const body = await readJsonObject<{ title?: unknown; fields?: unknown; cliId?: unknown; company?: unknown; application?: unknown }>(req);
+  const body = await readJsonObject<{ title?: unknown; fields?: unknown; cliId?: unknown; company?: unknown; application?: unknown; docs?: unknown }>(req);
   if (!body) return Response.json({ error: "bad json" }, { status: 400 });
   const fields = cleanFields(body.fields);
   if (!fields) return Response.json({ error: "fields must be a non-empty list of form fields" }, { status: 400 });
@@ -150,7 +152,25 @@ export async function POST(req: Request) {
       /* no attachment */
     }
   }
-  log(`extension draft: ${Object.keys(obj).length} answers${truncated ? " (truncated)" : ""} · cv attached=${!!cv}`);
+  // The Statement of Qualifications and the cover letter, when the form has an
+  // upload for them and the extension's toggles ask for them. Only the saved
+  // document for THIS tracker row: never another job's, never a generic one.
+  const extra: Record<string, { name: string; base64: string } | null> = {};
+  const wanted = Array.isArray(body.docs) ? [...new Set(body.docs.filter((k): k is "soq" | "cover" => k === "soq" || k === "cover"))] : [];
+  if (application && /^\d+$/.test(application)) {
+    const row = findApplication(application);
+    for (const kind of wanted) {
+      extra[kind] = null;
+      const file = await tailoredDocFor(kind, application).catch(() => null);
+      try {
+        const st = file ? fs.statSync(file) : null;
+        if (file && st?.isFile() && st.size <= MAX_CV_BYTES) extra[kind] = { name: handoffName(kind, application, row?.company ?? "", row?.role ?? "", file), base64: fs.readFileSync(file).toString("base64") };
+      } catch {
+        /* not attached */
+      }
+    }
+  }
+  log(`extension draft: ${Object.keys(obj).length} answers${truncated ? " (truncated)" : ""} · cv attached=${!!cv}${wanted.map((k) => ` · ${k} attached=${!!extra[k]}`).join("")}`);
   // One line per field, so a form that comes back mostly "needs you" can be
   // diagnosed from the log: was it the label, or the planner's choice?
   for (const f of fields) {
@@ -159,5 +179,5 @@ export async function POST(req: Request) {
     const verdict = fromBank[f.id] ? `saved answer (${fromBank[f.id].source})` : ans.needs_confirmation ? "NEEDS YOU" : ans.value != null && String(ans.value).trim() ? `answer (${String(ans.value).length} chars)` : "blank";
     log(`  ${f.id} [${f.type}${f.required ? "*" : ""}] "${f.label}"${f.options?.length ? ` {${f.options.length} options}` : ""} → ${verdict}`);
   }
-  return Response.json({ answers: obj, truncated, cv });
+  return Response.json({ answers: obj, truncated, cv, ...extra });
 }

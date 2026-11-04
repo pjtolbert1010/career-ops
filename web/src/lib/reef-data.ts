@@ -6,6 +6,7 @@ import { canonicalizeStatus } from "@/lib/core/states";
 import { parseReport, scoreNum } from "@/lib/format";
 import { readMachineSummary } from "@/lib/machine-summary.mjs";
 import { resolvePostingUrl } from "@/lib/posting-url.mjs";
+import { isCalCareersUrl, soqCore, tailoredCoverFor } from "@/lib/apply/docs";
 
 // Reef Watch: a read-only view over the tracker and its linked reports. Every
 // fact shown comes from those files; nothing here writes.
@@ -33,6 +34,12 @@ export type ReefJob = {
   nextAction: string;
   url: string;
   reportHref: string;
+  /** State of California posting (CalCareers): its applications carry an SOQ, not a cover letter. */
+  calcareers: boolean;
+  /** What the posting asks for, read from its archived JD. */
+  needs: { soq: boolean; cover: boolean; coverPageLimit: number | null };
+  /** Which tailored documents are saved for this row (output/, by tracker number). */
+  docs: { cv: boolean; soq: boolean; cover: boolean };
 };
 
 export type ReefApplied = {
@@ -115,7 +122,9 @@ function zoneFor(score: number, verification: string, legitimacy: string): ReefZ
   return score >= APPLY_SCORE ? "reef" : "shelf";
 }
 
-function toJob(app: Application, report: string | null, target: number | null, shallows: ReefData["shallows"]): ReefJob | null {
+type DocCore = Awaited<ReturnType<typeof soqCore>>;
+
+function toJob(app: Application, report: string | null, target: number | null, shallows: ReefData["shallows"], core: DocCore | null): ReefJob | null {
   const score = scoreNum(app.score);
   if (!Number.isFinite(score) || score < MIN_SCORE) return null;
   const meta = report ? parseReport(report) : { fields: [], legitimacy: null };
@@ -149,13 +158,35 @@ function toJob(app: Application, report: string | null, target: number | null, s
     nextAction: report ? yamlScalar(report, "next_action") : "",
     url: resolvePostingUrl(app.url, field(meta.fields, "URL")),
     reportHref: reportHrefFor(app),
+    ...documentsFor(app, report, resolvePostingUrl(app.url, field(meta.fields, "URL")), core),
+  };
+}
+
+function documentsFor(app: Application, report: string | null, url: string, core: DocCore | null): Pick<ReefJob, "calcareers" | "needs" | "docs"> {
+  const calcareers = isCalCareersUrl(url);
+  const rules = core && report ? core.extractSoqInstructions(core.jdTextFromReport(report)) : null;
+  return {
+    calcareers,
+    needs: {
+      soq: Boolean(rules?.soq_required),
+      cover: calcareers ? Boolean(rules?.cover_letter_required) : true,
+      coverPageLimit: rules?.cover_letter_page_limit ?? null,
+    },
+    docs: {
+      cv: app.pdf.includes("✅"),
+      soq: Boolean(core?.findDoc(careerOpsRoot(), "soq", app.n)),
+      cover: false, // filled in by readReefData (the cover lookup is async)
+    },
   };
 }
 
 const ZONE_ORDER: Record<ReefZone, number> = { reef: 0, shelf: 1, kelp: 2 };
 
-export function readReefData(): ReefData {
+export async function readReefData(): Promise<ReefData> {
   const apps = readApplications();
+  // The core's document helpers. A checkout without generate-soq.mjs still
+  // renders the reef, just without the Documents details.
+  const core = await soqCore().catch(() => null);
   const { target, label } = readTarget();
   // Latest date each row moved into each status (status-log.tsv is append-only).
   const enteredOn = new Map<string, string>();
@@ -181,8 +212,11 @@ export function readReefData(): ReefData {
       continue;
     }
     if (status !== "Evaluated") continue;
-    const job = toJob(app, readLinkedReport(app), target, shallows);
-    if (job) jobs.push(job);
+    const job = toJob(app, readLinkedReport(app), target, shallows, core);
+    if (job) {
+      job.docs.cover = Boolean(await tailoredCoverFor(app.n).catch(() => null));
+      jobs.push(job);
+    }
   }
 
   jobs.sort((a, b) => ZONE_ORDER[a.zone] - ZONE_ORDER[b.zone] || b.fit - a.fit);

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "career-ops Apply",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Fills a job application in your own Chrome when you click its toolbar button. Runs only on job sites, never submits.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmpYjY+BSlqpCfK8RaKe7oLNlxKJj49v6o3CQSSnYl44bth2ekFwb5bfkUnNdZfvcCcBa4/h2pggQgETWMJVSjUj5eRWHWsNqfL7kE9mGM+g1qEDEycpsebrAfi1QxwlNP6H4up3+WCBe77oH2nCFttxZwC3zUEWiFA7RzvfqJcfcWxe8/QkOg4csFewlNorz3kaMKdp5lRcQLCP1n2Woban8nkX16sup0lDek0rvExKnk/xZNpNWeSA69LarStTYiZ75mP6A+agae1EJRbywO7PQ6WD8InttQvp6JVYavS3AfElOo/MKXJrxchszKhTT/0CEUpgrcsESjquOwfRmNwIDAQAB",
   "permissions": [

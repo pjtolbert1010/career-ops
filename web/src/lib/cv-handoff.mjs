@@ -1,4 +1,5 @@
-// Short-lived links that hand one tailored CV PDF to a job application page.
+// Short-lived links that hand one tailored document PDF (the CV, the Statement
+// of Qualifications or the cover letter) to a job application page.
 //
 // Claude in Chrome cannot upload a file from the user's disk, so it attaches
 // the tailored CV from inside the application page instead: it fetches the PDF
@@ -42,25 +43,30 @@ function randomToken() {
   return Buffer.from(bytes).toString("base64url");
 }
 
+/** The documents a handoff link can carry. */
+export const HANDOFF_KINDS = ["cv", "soq", "cover"];
+
 /**
- * Mint a handoff token for one pipeline record.
+ * Mint a handoff token for one pipeline record's document.
  * @param {string} id  tracker row number, digits only
+ * @param {{ kind?: "cv" | "soq" | "cover" }} [opts]  which document; the CV by default
  * @returns {{ token: string, expiresAt: number }}
  */
-export function mintHandoff(id, { now = Date.now(), tokens = defaultStore() } = {}) {
+export function mintHandoff(id, { now = Date.now(), tokens = defaultStore(), kind = "cv" } = {}) {
   if (!/^\d+$/.test(String(id))) throw new Error("pipeline id must be digits");
+  if (!HANDOFF_KINDS.includes(kind)) throw new Error(`unknown document kind "${kind}"`);
   sweep(tokens, now);
   const token = randomToken();
   const expiresAt = now + HANDOFF_TTL_MS;
-  tokens.set(token, { id: String(id), expiresAt, uses: 0 });
+  tokens.set(token, { id: String(id), kind, expiresAt, uses: 0 });
   return { token, expiresAt };
 }
 
 /**
  * Spend one read of a handoff token.
- * @returns {string | null} the pipeline id, or null for an unknown, expired or used-up token
+ * @returns {{ id: string, kind: "cv" | "soq" | "cover" } | null} the record and document, or null for an unknown, expired or used-up token
  */
-export function redeemHandoff(token, { now = Date.now(), tokens = defaultStore() } = {}) {
+export function redeemHandoffEntry(token, { now = Date.now(), tokens = defaultStore() } = {}) {
   if (typeof token !== "string" || !TOKEN_RE.test(token)) return null;
   const entry = tokens.get(token);
   if (!entry) return null;
@@ -69,7 +75,15 @@ export function redeemHandoff(token, { now = Date.now(), tokens = defaultStore()
     return null;
   }
   entry.uses += 1;
-  return entry.id;
+  return { id: entry.id, kind: entry.kind || "cv" };
+}
+
+/**
+ * Spend one read of a handoff token.
+ * @returns {string | null} the pipeline id, or null for an unknown, expired or used-up token
+ */
+export function redeemHandoff(token, opts = {}) {
+  return redeemHandoffEntry(token, opts)?.id ?? null;
 }
 
 /**

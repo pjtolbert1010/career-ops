@@ -44,6 +44,25 @@ and nothing happens, click it yourself. A career-ops badge in the bottom-right c
 progress. On a multi-page form, each new page is filled when it appears. Review
 every field, then submit it yourself.
 
+### Documents it attaches
+
+The badge has three switches: **CV**, **SOQ** and **Cover letter**. Each one
+attaches that job's own tailored document to the upload whose label (or
+document-type dropdown) names it:
+
+- **CV**: the tailored CV, on any job site.
+- **SOQ**: the Statement of Qualifications, for CalCareers postings that ask
+  for one.
+- **Cover letter**: the tailored cover letter, for every other job (and for a
+  CalCareers posting that asks for a cover letter instead).
+
+The switches are saved and apply to every job until you change them. A
+document that is not made yet is left for you, and the badge says so. Make it
+in Chrome with the `career-reef-soq` or `career-reef-cover-letter` skill (or
+`/career-ops soq N` / `/career-ops cover N` in Claude Code), then click
+**Try blank fields again**. Career Reef lists each job's documents on its Reef
+Watch panel.
+
 ## Files
 
 - `bridge.js` runs on the dashboard and passes the Apply click to the extension.

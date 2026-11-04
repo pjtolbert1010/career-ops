@@ -78,3 +78,15 @@ test("the exempt read still gets the Host check", () => {
   assert.equal(read("evil.example:3000").ok, false);
   assert.equal(read("").ok, false);
 });
+
+test("a token carries the document it was minted for; the CV by default", async () => {
+  const { redeemHandoffEntry } = await import("../../src/lib/cv-handoff.mjs");
+  const tokens = new Map();
+  const cv = mintHandoff("12", { tokens });
+  const soq = mintHandoff("12", { tokens, kind: "soq" });
+  const cover = mintHandoff("12", { tokens, kind: "cover" });
+  assert.deepEqual(redeemHandoffEntry(cv.token, { tokens }), { id: "12", kind: "cv" });
+  assert.deepEqual(redeemHandoffEntry(soq.token, { tokens }), { id: "12", kind: "soq" });
+  assert.equal(redeemHandoff(cover.token, { tokens }), "12");
+  assert.throws(() => mintHandoff("12", { tokens, kind: "transcript" }), /unknown document kind/);
+});

@@ -223,6 +223,61 @@ function Tile({ label, value }: { label: string; value: string }) {
   );
 }
 
+// The application's own tailored documents: the CV always, the Statement of
+// Qualifications on CalCareers postings, the cover letter everywhere else (or
+// on a CalCareers posting that asks for one). Missing ones say how to make them.
+function DocRow({ label, ready, href, need, make }: { label: string; ready: boolean; href: string; need?: string; make: string }) {
+  return (
+    <li className="flex flex-col gap-1 rounded-xl bg-[#f6efe0] px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[14px] font-extrabold">{label}</span>
+        {ready ? (
+          <a href={href} target="_blank" rel="noreferrer" className="rounded-full bg-[#0b5d7a] px-3 py-1 text-xs font-bold no-underline hover:bg-[#094a61] focus-visible:outline-3 focus-visible:outline-[#0b5d7a]" style={{ color: "#fff" }}>
+            View
+          </a>
+        ) : (
+          <span className="rounded-full bg-[#fff1cc] px-2.5 py-1 text-xs font-bold text-[#5c4300]">Not made yet</span>
+        )}
+      </div>
+      {need && <span className="text-xs font-bold text-[#7a3b00]">{need}</span>}
+      {!ready && <span className="text-xs leading-snug text-[#4b6470]">{make}</span>}
+    </li>
+  );
+}
+
+function Documents({ job }: { job: ReefJob }) {
+  const showSoq = job.calcareers || job.needs.soq;
+  const showCover = !job.calcareers || job.needs.cover;
+  const view = (kind: string) => `/api/docs/${job.n}/pdf?kind=${kind}`;
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>Documents</Label>
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+        <DocRow label="Tailored CV" ready={job.docs.cv} href={view("cv")} make="Use Generate CV above." />
+        {showSoq && (
+          <DocRow
+            label="Statement of Qualifications"
+            ready={job.docs.soq}
+            href={view("soq")}
+            need={job.needs.soq ? "This posting requires an SOQ." : job.calcareers ? "This posting does not list an SOQ." : undefined}
+            make={`In Chrome on the posting, ask Claude to use career-reef-soq. Or in Claude Code: /career-ops soq ${job.n}`}
+          />
+        )}
+        {showCover && (
+          <DocRow
+            label="Cover letter"
+            ready={job.docs.cover}
+            href={view("cover")}
+            need={job.calcareers && job.needs.cover ? `This posting asks for a cover letter${job.needs.coverPageLimit ? ` (max ${job.needs.coverPageLimit} page${job.needs.coverPageLimit > 1 ? "s" : ""})` : ""}.` : undefined}
+            make={`In Chrome on the application, ask Claude to use career-reef-cover-letter. Or in Claude Code: /career-ops cover ${job.n}`}
+          />
+        )}
+      </ul>
+      <p className="m-0 text-center text-xs text-[#4b6470]">The career-ops Apply extension attaches these to the form when its document toggles are on.</p>
+    </div>
+  );
+}
+
 function JobDetail({ job, onClose }: { job: ReefJob; onClose: () => void }) {
   return (
     <div className="flex flex-col gap-3">
@@ -268,6 +323,7 @@ function JobDetail({ job, onClose }: { job: ReefJob; onClose: () => void }) {
       <div className="flex flex-wrap items-center justify-center gap-1.5">
         <GeneratePdfButton n={job.n} company={job.employer} pdfReady={job.pdfReady} />
       </div>
+      <Documents job={job} />
       {job.url ? (
         <a href={job.url} target="_blank" rel="noopener noreferrer" className="reef-display flex min-h-11 items-center justify-center rounded-2xl border-2 border-[#0b5d7a] text-[15px] font-semibold text-[#0b5d7a] no-underline hover:bg-[#e9f6f7]">
           Open posting
