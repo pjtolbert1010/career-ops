@@ -1,8 +1,10 @@
 // career-ops Apply: injected into every frame of a tab the dashboard opened.
 //
-// Waits out sign-in pages, then reads the application form, asks career-ops
-// for drafted answers, and fills the empty fields. It never clicks Submit,
-// Next, or Apply, and never overwrites a value already on the page. Answers
+// Presses the posting's own Apply button when the page shows no form yet,
+// waits out sign-in pages, then reads the application form, asks career-ops
+// for drafted answers, and fills the empty fields. It never clicks Submit or
+// Next, never presses Apply on a page that has a form, and never overwrites a
+// value already on the page. Answers
 // the planner marks needs_confirmation (legal, visa, salary, demographic) are
 // left blank and outlined for the user.
 (() => {
@@ -411,6 +413,40 @@
     });
   }
 
+  // ---- the posting's own Apply button. A posting page often shows the job
+  // description first and the form only after Apply, so the filler presses it
+  // once per page, and only while no application form is on the page: on a
+  // form, a button reading "Apply" can be the final submit. Third-party
+  // sign-in buttons ("Apply with LinkedIn") are never pressed.
+  const APPLY_TEXT = /^(apply|apply now|apply (online|here|today)|apply for (this )?(job|position|role|opening)|apply to (this )?(job|position|role)|apply manually|start (your |my )?application|begin (your )?application|i'?m interested)$/i;
+  let pressedApply = false;
+  function applyButton() {
+    const els = document.querySelectorAll("a[href], button, input[type=button], input[type=submit], [role=button], [role=link]");
+    for (const el of els) {
+      if (!visible(el) || el.disabled || el.getAttribute("aria-disabled") === "true") continue;
+      const text = clean(el.innerText || el.value || el.getAttribute("aria-label") || "");
+      if (!APPLY_TEXT.test(text)) continue;
+      // A submit button inside a form that has its own fields submits that form.
+      const form = el.closest("form");
+      if (form && Array.from(form.querySelectorAll("input:not([type=hidden]):not([type=submit]):not([type=button]), textarea, select")).some(visible)) continue;
+      return el;
+    }
+    return null;
+  }
+  function pressApply() {
+    if (pressedApply || filledAny) return false;
+    const el = applyButton();
+    if (!el) return false;
+    pressedApply = true;
+    badge("Opening the application form…");
+    // A link that opens a new tab is followed in this tab instead, so the
+    // popup blocker can't stop it and the filler keeps the job.
+    const href = el.tagName === "A" ? el.getAttribute("href") || "" : "";
+    if (href && el.target === "_blank" && /^https?:/i.test(el.href)) location.href = el.href;
+    else el.click();
+    return true;
+  }
+
   async function scan() {
     if (busy) return;
     if (onLoginPage()) {
@@ -421,7 +457,8 @@
     const todo = fields.filter((f) => f.empty !== false);
     if (!looksLikeApplication(fields) || todo.length === 0) {
       fields.forEach((f) => (f.group || [f.el]).forEach((e) => e && e.removeAttribute("data-co-field")));
-      if (TOP && !filledAny && !badgeText) badge("Waiting for the application form. Click the site's Apply button if it has one.");
+      if (!looksLikeApplication(fields) && pressApply()) return;
+      if (TOP && !filledAny && (!badgeText || badgeText.startsWith("Opening"))) badge("Waiting for the application form. Click the site's Apply button if it has one.");
       return;
     }
     fields.forEach((f) => known.set(f.id, f));
