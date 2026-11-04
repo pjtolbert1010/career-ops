@@ -19,8 +19,8 @@ export default function Home() {
   // First run (truly empty install): the CV-upload takeover IS the home — value
   // before commitment. The full dashboard returns once they have a CV or any data.
   if (showFirstRunHome(phase, snapshot.inbox.length)) return <FirstRunHome />;
-  // Set up and tracking roles: the ranked pipeline is the home page.
-  if (!onboardingNeeded && snapshot.applications.length > 0) redirect("/pipeline");
+  // Set up and tracking roles: Reef Watch is the home page.
+  if (!onboardingNeeded && snapshot.applications.length > 0) redirect("/reef");
 
   const { inbox, applications } = todaySnapshot(snapshot, scoreNum);
   const reasons: Record<string, CardReason> = {};

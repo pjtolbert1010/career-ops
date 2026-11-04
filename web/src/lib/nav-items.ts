@@ -13,9 +13,9 @@ export type NavItem = {
 // Trimmed to the pipeline workflow. The other pages still exist and open by
 // URL: /explore, /scheduled-scans, /followups, /portals, /analytics, /documents.
 export const NAV_ITEMS: NavItem[] = [
+  { href: "/reef", label: "Reef", icon: Fish },
   { href: "/pipeline", label: "Pipeline", icon: ListChecks },
   { href: "/answers", label: "Answers", icon: ClipboardList },
-  { href: "/reef", label: "Reef", icon: Fish },
   { href: "/cv", label: "CV", icon: FileText },
   { href: "/config", label: "Config", icon: Settings },
 ];

@@ -15,6 +15,10 @@ export type CritterKind = "crab" | "octo" | "puffer" | "jelly" | "star" | "horse
 
 export type ReefJob = {
   id: string;
+  /** Tracker row number, the key Apply and CV generation use. */
+  n: string;
+  /** Tracker PDF column is ✅: a tailored CV exists for this row. */
+  pdfReady: boolean;
   zone: ReefZone;
   kind: CritterKind;
   critter: string;
@@ -38,6 +42,8 @@ export type ReefData = {
   applied: { what: string; when: string; status: string }[];
   shallows: { what: string; pay: string }[];
   targetLabel: string;
+  /** Candidate's first name from config/profile.yml, for the fish. */
+  swimmer: string;
   counts: { confirmed: number; toVerify: number; applied: number };
 };
 
@@ -80,13 +86,17 @@ function money(n: number): string {
   return `$${Math.round(n / 1000)}K`;
 }
 
-function readTarget(): { target: number | null; label: string } {
+function readProfile(): { target: number | null; label: string; swimmer: string } {
   try {
-    const raw = yaml.load(fs.readFileSync(getProfilePath(careerOpsRoot()), "utf8")) as { compensation?: { target_range?: unknown } } | null;
+    const raw = yaml.load(fs.readFileSync(getProfilePath(careerOpsRoot()), "utf8")) as {
+      compensation?: { target_range?: unknown };
+      candidate?: { full_name?: unknown };
+    } | null;
     const label = String(raw?.compensation?.target_range ?? "").trim();
-    return { target: label ? annualTop(label) : null, label };
+    const swimmer = String(raw?.candidate?.full_name ?? "").trim().split(/\s+/)[0] ?? "";
+    return { target: label ? annualTop(label) : null, label, swimmer };
   } catch (err) {
-    if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return { target: null, label: "" };
+    if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return { target: null, label: "", swimmer: "" };
     throw err;
   }
 }
@@ -118,6 +128,8 @@ function toJob(app: Application, report: string | null, target: number | null, s
 
   return {
     id: app.n,
+    n: app.n,
+    pdfReady: app.pdf.includes("✅"),
     zone: zoneFor(score, verification, legitimacy),
     kind,
     critter: `${FIRST[(h >>> 8) % FIRST.length]} ${LAST[kind]}`,
@@ -141,7 +153,7 @@ const ZONE_ORDER: Record<ReefZone, number> = { reef: 0, shelf: 1, kelp: 2 };
 
 export function readReefData(): ReefData {
   const apps = readApplications();
-  const { target, label } = readTarget();
+  const { target, label, swimmer } = readProfile();
   const jobs: ReefJob[] = [];
   const applied: ReefData["applied"] = [];
   const shallows: ReefData["shallows"] = [];
@@ -163,6 +175,7 @@ export function readReefData(): ReefData {
     applied,
     shallows: shallows.slice(0, 8),
     targetLabel: label,
+    swimmer: swimmer || "You",
     counts: {
       confirmed: jobs.filter((j) => j.zone !== "kelp").length,
       toVerify: jobs.filter((j) => j.zone === "kelp").length,

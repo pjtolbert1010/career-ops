@@ -37,9 +37,7 @@ export function AppShell({ children, followupsEnabled }: { children: React.React
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface/30 p-4 md:flex">
           <Link href="/" className="mb-8 flex items-center gap-2.5 px-1">
             <CoMark size={32} />
-            <span className={`${instrumentSerif.className} relative -top-px text-2xl font-normal tracking-tight text-landing`}>
-              career-ops
-            </span>
+            <span className="reef-display text-2xl font-bold tracking-tight text-landing">Career Reef</span>
           </Link>
           <nav className="flex flex-col gap-1">
             {visibleNavItems(followupsEnabled).map(({ href, label, icon: Icon, chip }) => {

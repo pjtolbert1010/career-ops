@@ -2,18 +2,18 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Design tokens — inherited from career-ops-docs. Brand burnt-orange #dd7627
-   (mode-invariant), zinc neutrals, light + dark (Fumadocs neutral values).
+   Design tokens — Career Reef ocean theme. Brand deep-sea teal #0a7194
+   (mode-invariant, white text 5.6:1), sea-foam light / deep-ocean dark.
    ────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-brand: hsl(26 73% 51%);
-  --color-brand-200: hsl(33 100% 60%); /* hover / lighter */
+  --color-brand: #0a7194;
+  --color-brand-200: #075a76; /* hover (darker, keeps white text AA) */
   /* Near-black on the brand orange: 5.2:1 on brand, 8.3:1 on brand-200 hover
      (white was 3.14:1, an AA fail in BOTH themes since the button is the same).
      The brand orange itself is untouched — only what sits on top of it. */
-  --color-brand-foreground: hsl(24 30% 12%);
-  --color-brand-soft: hsl(26 73% 51% / 0.12);
-  --color-brand-secondary: #fc7744;
+  --color-brand-foreground: #ffffff;
+  --color-brand-soft: hsl(195 86% 31% / 0.12);
+  --color-brand-secondary: #ff8a3d; /* reef coral */
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
@@ -39,32 +39,32 @@
 }
 
 :root {
-  --bg: #f7f6f3; /* warm off-white (docs stone tone) */
+  --bg: #eaf6f8; /* sea foam */
   --surface: #ffffff;
-  --surface-hover: #efeeea;
-  --border: hsl(40 9% 86%);
-  --fg: hsl(30 10% 11%); /* warm near-black, high legibility */
-  --muted: hsl(35 9% 34%); /* darker than before for readable body text */
-  --faint: hsl(35 7% 42%); /* AA: ~4.6:1 on #fff (was 50% ≈ 3.9:1, failed small text) */
-  --landing: #59592a; /* olive editorial headline */
-  --brand-text: hsl(26 80% 36%); /* darkened brand for small text: 5.5 white / 5.1 cream / 4.7 surface-hover */
-  --dot: 40 8% 42% / 0.09;
-  --pre-bg: #f2f1ed;
+  --surface-hover: #dceff3;
+  --border: hsl(192 30% 83%);
+  --fg: #0d2a3a; /* deep-water ink */
+  --muted: #2c4a58;
+  --faint: #4b6470; /* AA: ~5.9:1 on #fff */
+  --landing: #08384c; /* deep-sea headline */
+  --brand-text: #0a6584; /* brand for small text: 6.3 white / 5.8 sea foam */
+  --dot: 195 40% 40% / 0.10;
+  --pre-bg: #e1f1f4;
   color-scheme: light;
 }
 
 .dark {
-  --bg: #0a0a0a;
-  --surface: #161616;
-  --surface-hover: #232323;
-  --border: #262626;
-  --fg: #fafafa;
-  --muted: #a1a1aa;
-  --faint: #8b8b95; /* AA: ~4.6:1 on #161616 (was #71717a ≈ 3.7:1, failed small text) */
-  --landing: #e4e2d0; /* cream editorial headline */
-  --brand-text: hsl(26 73% 51%); /* raw brand already passes in dark (≥4.95 on bg/surface) */
-  --dot: 240 5% 65% / 0.10;
-  --pre-bg: #111111;
+  --bg: #04161f; /* midnight zone */
+  --surface: #0a2230;
+  --surface-hover: #10303f;
+  --border: #173d50;
+  --fg: #e6f6f9;
+  --muted: #a6c6d1;
+  --faint: #86aab7; /* AA: ~6:1 on surface */
+  --landing: #bde9f3; /* shallow-water headline */
+  --brand-text: #5cc8e6; /* bright teal for small text on dark water */
+  --dot: 190 40% 70% / 0.10;
+  --pre-bg: #071c27;
   color-scheme: dark;
 }
 
@@ -320,8 +320,8 @@ html {
 .co-cost[data-size="sm"]{font-size:11px;padding:.24rem .5rem}
 .co-cost[data-tone="free"]{color:hsl(162 91% 24%);background:hsl(160 64% 46% / .12);border-color:hsl(160 64% 46% / .28)}
 html.dark .co-cost[data-tone="free"]{color:hsl(158 64% 60%);background:hsl(158 64% 52% / .13);border-color:hsl(158 64% 52% / .26)}
-.co-cost[data-tone="spend"]{color:hsl(35 9% 34%);background:hsl(35 8% 46% / .12);border-color:hsl(35 8% 46% / .26)}
-html.dark .co-cost[data-tone="spend"]{color:hsl(35 8% 70%);background:hsl(35 6% 60% / .12);border-color:hsl(35 6% 60% / .24)}
+.co-cost[data-tone="spend"]{color:#2c4a58;background:hsl(195 20% 46% / .12);border-color:hsl(195 20% 46% / .26)}
+html.dark .co-cost[data-tone="spend"]{color:#a6c6d1;background:hsl(195 20% 60% / .12);border-color:hsl(195 20% 60% / .24)}
 .co-cost svg{width:.85em;height:.85em}
 
 /* Reef Watch (/reef). Rounded system faces stand in for the design's Fredoka/Nunito:

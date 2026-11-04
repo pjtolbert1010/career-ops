@@ -4,6 +4,8 @@ import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import type { CritterKind, ReefData, ReefJob, ReefZone } from "@/lib/reef-data";
 import { cn } from "@/lib/cn";
+import { ApplyButton } from "@/components/apply-button";
+import { GeneratePdfButton } from "@/components/generate-pdf-button";
 
 const INK = "#0d2a3a";
 
@@ -100,10 +102,10 @@ function Critter({ kind, color }: { kind: CritterKind; color: string }) {
   }
 }
 
-function Fish({ x, y, face }: { x: number; y: number; face: 1 | -1 }) {
+function Fish({ x, y, face, name }: { x: number; y: number; face: 1 | -1; name: string }) {
   return (
     <div className="reef-fish pointer-events-none absolute z-20 h-[50px] w-16" style={{ left: x, top: y }}>
-      <div className="reef-display absolute -top-5 left-0 w-16 text-center text-xs font-semibold text-white">Patrick</div>
+      <div className="reef-display absolute -top-5 left-0 w-16 text-center text-xs font-semibold text-white">{name}</div>
       <svg width="64" height="50" viewBox="0 0 64 50" aria-hidden="true" style={{ transform: `scaleX(${face})`, transition: "transform .2s" }}>
         <path d="M10 25 L0 10 L0 40 Z" fill="#ff8a3d" />
         <ellipse cx="34" cy="25" rx="24" ry="17" fill="#ff8a3d" />
@@ -169,8 +171,15 @@ function JobDetail({ job, onClose }: { job: ReefJob; onClose: () => void }) {
         <Label className="text-[#5c4300]">Verification</Label>
         <span className="text-[13px] leading-snug text-[#3d2d00]">{job.verify}</span>
       </div>
+      <div className="flex flex-col gap-2">
+        <ApplyButton large n={job.n} url={job.url || undefined} company={job.employer} pdfReady={job.pdfReady} />
+        <p className="text-center text-xs text-[#4b6470]">Opens the form filled with your tailored CV and saved answers. You review and press Submit yourself.</p>
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
+        <GeneratePdfButton n={job.n} company={job.employer} pdfReady={job.pdfReady} />
+      </div>
       {job.url ? (
-        <a href={job.url} target="_blank" rel="noopener noreferrer" className="reef-display flex min-h-12 items-center justify-center rounded-2xl bg-[#0b5d7a] text-[17px] font-semibold text-white no-underline hover:bg-[#063f54]">
+        <a href={job.url} target="_blank" rel="noopener noreferrer" className="reef-display flex min-h-11 items-center justify-center rounded-2xl border-2 border-[#0b5d7a] text-[15px] font-semibold text-[#0b5d7a] no-underline hover:bg-[#e9f6f7]">
           Open posting
         </a>
       ) : (
@@ -322,7 +331,7 @@ export function ReefWorld({ data }: { data: ReefData }) {
           );
         })}
 
-        <Fish x={fish.x} y={fish.y} face={fish.face} />
+        <Fish x={fish.x} y={fish.y} face={fish.face} name={data.swimmer} />
       </div>
 
       {/* PANEL */}

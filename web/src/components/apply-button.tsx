@@ -18,12 +18,15 @@ export function ApplyButton({
   company,
   pdfReady,
   quiet = false,
+  large = false,
 }: {
   n: string;
   url?: string;
   company: string;
   pdfReady: boolean;
   quiet?: boolean;
+  /** Full-width primary button (Reef Watch job panel). */
+  large?: boolean;
 }) {
   const router = useRouter();
   const { jobs } = useJobs();
@@ -35,11 +38,18 @@ export function ApplyButton({
   const ready = (pdfReady || pdfJobDone) && hasUrl;
 
   if (!ready) {
+    const why = !hasUrl ? "No application URL on this report" : "Generate the tailored CV (PDF) first to apply";
+    if (large)
+      return (
+        <button type="button" disabled title={why} className="flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-surface/40 px-4 text-sm font-semibold text-faint">
+          <Lock className="size-4" /> Apply · {why.toLowerCase()}
+        </button>
+      );
     return (
       <button
         type="button"
         disabled
-        title={!hasUrl ? "No application URL on this report" : "Generate the tailored CV (PDF) first to apply"}
+        title={why}
         className="inline-flex cursor-not-allowed items-center justify-center gap-1.5 rounded-full border border-border bg-surface/40 px-3.5 py-1 text-xs font-medium text-faint max-sm:min-h-[44px]"
       >
         <Lock className="size-3.5" /> Apply
@@ -68,7 +78,9 @@ export function ApplyButton({
         router.push("/apply");
       }}
       className={
-        quiet
+        large
+          ? "reef-display flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand px-4 text-[17px] font-semibold text-brand-foreground shadow-sm transition-colors hover:bg-brand-200"
+          : quiet
           ? "inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-transparent px-3.5 py-1 text-xs font-medium text-muted transition-colors hover:border-foreground/20 hover:text-foreground max-sm:min-h-[44px]"
           : "inline-flex items-center justify-center gap-1.5 rounded-full bg-brand px-3.5 py-1 text-xs font-medium text-brand-foreground shadow-sm transition-colors hover:bg-brand-200 max-sm:min-h-[44px]"
       }
@@ -78,7 +90,7 @@ export function ApplyButton({
           : "Apply — opens the form pre-filled, you review and submit yourself"
       }
     >
-      <Send className="size-3.5" /> {opened ? "Opened in new tab" : "Apply"}
+      <Send className={large ? "size-4" : "size-3.5"} /> {opened ? "Opened in new tab" : large ? "Apply now" : "Apply"}
     </button>
   );
 }
