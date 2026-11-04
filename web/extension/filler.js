@@ -458,7 +458,13 @@
     if (!looksLikeApplication(fields) || todo.length === 0) {
       fields.forEach((f) => (f.group || [f.el]).forEach((e) => e && e.removeAttribute("data-co-field")));
       if (!looksLikeApplication(fields) && pressApply()) return;
-      if (TOP && !filledAny && (!badgeText || badgeText.startsWith("Opening"))) badge("Waiting for the application form. Click the site's Apply button if it has one.");
+      // A step of a multi-step application (NEOGOV's /apply/work lists the
+      // profile's saved jobs) can have nothing blank on it.
+      const onStep = /\/apply(\/|$)/i.test(location.pathname) || fields.length > 0;
+      const idle = onStep
+        ? "Nothing blank to fill on this step. Check it, then click Next yourself. Filling starts again on the next step."
+        : "Waiting for the application form. Click the site's Apply button if it has one.";
+      if (TOP && !filledAny && (!badgeText || badgeText.startsWith("Opening") || badgeText.startsWith("Waiting") || badgeText.startsWith("Nothing blank"))) badge(idle);
       return;
     }
     fields.forEach((f) => known.set(f.id, f));
