@@ -447,6 +447,37 @@
     return true;
   }
 
+  // ---- saved entries the site flags as incomplete. NEOGOV lists a profile's
+  // saved jobs as read-only cards and outlines one in red when a required
+  // field (Supervisor, say) is blank; its fields only exist after Edit. The
+  // filler presses Edit once per flagged card. Edit only opens the entry: Save
+  // stays with the user.
+  const pressedEdit = new WeakSet();
+  const isRed = (c) => {
+    const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c || "");
+    return !!m && +m[1] > 150 && +m[2] < 90 && +m[3] < 90;
+  };
+  function flagged(el) {
+    let c = el.parentElement;
+    for (let i = 0; i < 8 && c && c !== document.body; i++, c = c.parentElement) {
+      if (/\b(has-error|error|invalid)\b/i.test(c.className || "")) return true;
+      const s = getComputedStyle(c);
+      if (parseFloat(s.borderTopWidth) > 0 && isRed(s.borderTopColor)) return true;
+    }
+    return false;
+  }
+  function pressFlaggedEdit() {
+    for (const el of document.querySelectorAll("a, button, [role=button]")) {
+      if (pressedEdit.has(el) || !visible(el) || !/^edit$/i.test(clean(el.innerText || el.getAttribute("aria-label") || ""))) continue;
+      if (!flagged(el)) continue;
+      pressedEdit.add(el);
+      badge("Opening an entry the site flagged as incomplete…");
+      el.click();
+      return true;
+    }
+    return false;
+  }
+
   async function scan() {
     if (busy) return;
     if (onLoginPage()) {
@@ -458,6 +489,7 @@
     if (!looksLikeApplication(fields) || todo.length === 0) {
       fields.forEach((f) => (f.group || [f.el]).forEach((e) => e && e.removeAttribute("data-co-field")));
       if (!looksLikeApplication(fields) && pressApply()) return;
+      if (todo.length === 0 && pressFlaggedEdit()) return;
       // A step of a multi-step application (NEOGOV's /apply/work lists the
       // profile's saved jobs) can have nothing blank on it.
       const onStep = /\/apply(\/|$)/i.test(location.pathname) || fields.length > 0;
