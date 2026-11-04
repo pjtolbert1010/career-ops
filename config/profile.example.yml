@@ -407,3 +407,11 @@ cover_letter:
 #     cross_role_bucket: "all_EM_roles"
 #     applied_to: ["Senior Software Engineer"]
 #     last_apply_date: "2026-01-01"
+
+# (Optional) Copy every tailored CV into one folder, with a manifest.json, for
+# another assistant or tool to read (node export-cvs.mjs). auto: true re-runs
+# the export after each CV generate-pdf.mjs renders. dir defaults to
+# ~/Desktop/Tailored-CVs.
+# cv_export:
+#   auto: true
+#   dir: "~/Desktop/Tailored-CVs"

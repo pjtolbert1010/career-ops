@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { exportCorsHeaders, exportFileName, tailoredCvFor } from "@/lib/cv-export";
+import { exportCore, exportCorsHeaders, tailoredCvFor } from "@/lib/cv-export";
 import { findApplication } from "@/lib/career-ops";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const pdf = await tailoredCvFor(id);
   if (!pdf) return Response.json({ error: "no tailored CV for this pipeline record" }, { status: 404, headers: cors });
   const app = findApplication(id);
-  const name = app ? exportFileName(id, app.company, app.role) : path.basename(pdf);
+  const name = app ? (await exportCore()).exportFileName(id, app.company, app.role) : path.basename(pdf);
   let buf: Buffer;
   try {
     buf = fs.readFileSync(pdf);

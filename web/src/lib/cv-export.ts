@@ -1,17 +1,15 @@
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { careerOpsRoot, isRegularContainedFile, pdfPathStatusForReport, readApplications, readReport } from "@/lib/career-ops";
+import { pathToFileURL } from "node:url";
+import { careerOpsRoot, isRegularContainedFile, pdfPathStatusForReport } from "@/lib/career-ops";
 import { resolveTailoredCv } from "@/lib/apply/cv";
-import { reportNumberFromCell } from "@/lib/apply/cv-selection.mjs";
-import { unwrapReportUrlToken } from "@/lib/core/report-url-token.mjs";
+import { resolveCodeRoot } from "@/lib/core/code-root.mjs";
 import { parseAllowedOrigins } from "@/lib/origin-guard.mjs";
-import { postingHref } from "@/lib/posting-url.mjs";
 
 // Tailored-CV export for companion clients (another assistant, a browser
-// extension). Read-only over the user's files except for the export folder,
-// which only ever gains or refreshes the files this module names: nothing in
-// it is deleted.
+// extension). The export itself (file names, folder, manifest) lives in the
+// core's export-cvs.mjs, which generate-pdf.mjs also runs after each CV, so
+// the dashboard and the CLI write the same files. Nothing in the export
+// folder is ever deleted.
 
 export type CvExportRecord = {
   id: string;
@@ -22,16 +20,24 @@ export type CvExportRecord = {
   cv_file: string | null;
 };
 
-const REPORT_URL = /\*\*URL:\*\*[ \t]*(\S+)/;
+type ExportCore = {
+  exportFileName(id: string, company: string, title: string): string;
+  exportRecords(root: string): { record: CvExportRecord; pdf: string | null }[];
+  writeExport(root: string): { dir: string; manifest: string; files: { file: string; id: string; company: string; job_title: string; job_url: string | null }[] };
+};
 
-/** ASCII words joined by "-", capped so the file name stays a sane length. */
-function slug(s: string, max: number): string {
-  const out = (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).join("-");
-  return (out.length > max ? out.slice(0, max).replace(/-[^-]*$/, "") : out) || "untitled";
+/** The core's export-cvs.mjs, loaded at runtime from the running checkout. */
+export async function exportCore(): Promise<ExportCore> {
+  const file = path.join(resolveCodeRoot(process.cwd(), process.env), "export-cvs.mjs");
+  return (await import(/* webpackIgnore: true */ pathToFileURL(file).href)) as ExportCore;
 }
 
-export function exportFileName(id: string, company: string, title: string): string {
-  return `${id}-${slug(company, 40)}-${slug(title, 60)}.pdf`;
+export async function exportRecords() {
+  return (await exportCore()).exportRecords(careerOpsRoot());
+}
+
+export async function writeExport() {
+  return (await exportCore()).writeExport(careerOpsRoot());
 }
 
 /** The tailored CV PDF for a tracker row, the same lookup the pipeline page uses. */
@@ -41,47 +47,6 @@ export async function tailoredCvFor(id: string): Promise<string | null> {
   const found = viaRow ?? (await pdfPathStatusForReport(id).then((r) => (r.status === "found" ? r.path : null)));
   if (!found || !/\.pdf$/i.test(found) || !isRegularContainedFile(found, careerOpsRoot())) return null;
   return found;
-}
-
-function jobUrl(app: { url: string; report: string; n: string }): string | null {
-  const fromCell = postingHref(app.url);
-  if (fromCell) return fromCell;
-  const reportNumber = reportNumberFromCell(app.report);
-  const report = readReport(String(reportNumber ?? app.n));
-  const m = report ? REPORT_URL.exec(report.content) : null;
-  return m ? unwrapReportUrlToken(m[1]) : null;
-}
-
-export async function exportRecords(): Promise<{ record: CvExportRecord; pdf: string | null }[]> {
-  const out = [];
-  for (const app of readApplications()) {
-    const id = String(parseInt(app.n, 10));
-    if (id === "NaN") continue;
-    const pdf = await tailoredCvFor(id);
-    out.push({
-      record: { id, company: app.company, job_title: app.role, job_url: jobUrl(app), status: app.status, cv_file: pdf ? exportFileName(id, app.company, app.role) : null },
-      pdf,
-    });
-  }
-  return out;
-}
-
-export function exportDir(): string {
-  return process.env.CAREER_OPS_CV_EXPORT_DIR?.trim() || path.join(os.homedir(), "Desktop", "Tailored-CVs");
-}
-
-/** Copy every tailored CV into the export folder and write manifest.json beside them. */
-export async function writeExport(dir = exportDir()) {
-  fs.mkdirSync(dir, { recursive: true });
-  const files = [];
-  for (const { record, pdf } of await exportRecords()) {
-    if (!pdf || !record.cv_file) continue;
-    fs.copyFileSync(pdf, path.join(dir, record.cv_file));
-    files.push({ file: record.cv_file, id: record.id, company: record.company, job_title: record.job_title, job_url: record.job_url });
-  }
-  const manifest = path.join(dir, "manifest.json");
-  fs.writeFileSync(manifest, JSON.stringify({ generated: new Date().toISOString(), files }, null, 2) + "\n", "utf8");
-  return { dir, manifest, files };
 }
 
 /**

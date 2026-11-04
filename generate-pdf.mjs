@@ -2483,6 +2483,21 @@ async function renderInPage(browser, html, outputPath, opts = {}) {
       console.error(`⚠️  Manifest update failed: ${err.message}`);
     }
 
+    // Opt-in (cv_export.auto in config/profile.yml): refresh the tailored-CV
+    // export folder so a companion client sees the new CV. Same rule as the
+    // manifest: a failed export never fails the render.
+    if (artifactKind === 'cv') {
+      try {
+        const { autoExportEnabled, writeExport } = await import('./export-cvs.mjs');
+        if (autoExportEnabled(getCareerOpsRoot())) {
+          const result = writeExport(getCareerOpsRoot());
+          console.log(`📤 CV export: ${result.files.length} tailored CVs in ${result.dir}`);
+        }
+      } catch (err) {
+        console.error(`⚠️  CV export failed: ${err.message}`);
+      }
+    }
+
     return { outputPath, pageCount, size: pdfBuffer.length };
   } finally {
     // Close the page so a batch does not accumulate pages into the shared
