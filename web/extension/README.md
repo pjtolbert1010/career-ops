@@ -1,10 +1,12 @@
 # career-ops Apply (Chrome extension)
 
 Apply from the dashboard opens the posting in a new tab of your own Chrome, so
-Google sign-in and saved site logins work. Once the application form shows
-(after you sign in), the extension reads it, asks career-ops for drafted
+Google sign-in and saved site logins work. On a posting page with no form yet,
+the extension presses the site's own Apply button once. Once the application
+form shows (after you sign in), it reads it, asks career-ops for drafted
 answers, and fills the empty fields. It attaches the tailored CV to the resume
-upload. It never clicks Submit, Next or Apply, never overwrites what is already
+upload. It never clicks Submit or Next, never presses Apply on a page that has
+a form, never uses "Apply with LinkedIn"-style buttons, never overwrites what is already
 on the page, and leaves legal, visa, salary and demographic questions blank,
 outlined in orange.
 
@@ -26,8 +28,9 @@ Without the extension, Apply falls back to the Playwright apply window.
 
 ## Use
 
-Press **Apply** on the pipeline. In the new tab, click the site's own Apply
-button and sign in if asked. A career-ops badge in the bottom-right corner shows
+Press **Apply** on the pipeline. The new tab presses the site's own Apply
+button for you; sign in if asked. If the site's button is worded differently
+and nothing happens, click it yourself. A career-ops badge in the bottom-right corner shows
 progress. On a multi-page form, each new page is filled when it appears. Review
 every field, then submit it yourself.
 
