@@ -69,6 +69,16 @@
         "bridge.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://calcareers.ca.gov/*ReviewApplication.aspx*",
+        "https://*.calcareers.ca.gov/*ReviewApplication.aspx*"
+      ],
+      "js": [
+        "calcareers-certify.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "optional_host_permissions": [
