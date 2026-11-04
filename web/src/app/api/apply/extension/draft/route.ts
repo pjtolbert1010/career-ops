@@ -11,6 +11,7 @@ import { extractJsonObject } from "@/lib/extract-json-object.mjs";
 import { readJsonObject } from "@/lib/json-body";
 import { findEntry, loadBank, normalizeQuestion } from "@/lib/apply/answer-bank.mjs";
 import { loadAnswers, lookupByLabel } from "@/lib/answers.mjs";
+import { eeoDecline } from "@/lib/apply/eeo-decline.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,6 +92,11 @@ export async function POST(req: Request) {
   const essays: string[] = [];
   const toPlan: PlannerField[] = [];
   for (const f of fields) {
+    const declined = eeoDecline(f, fixed as never);
+    if (declined) {
+      fromBank[f.id] = { value: declined, needs_confirmation: false, source: "eeo decline" };
+      continue;
+    }
     const entry = findEntry(bank, f.label);
     if (entry && f.type !== "textarea") {
       fromBank[f.id] = { value: entry.answer, needs_confirmation: false, source: "bank" };
