@@ -5,6 +5,7 @@ import {
   parseAllowedHosts,
   parseAllowedOrigins,
 } from "@/lib/origin-guard.mjs";
+import { isCvHandoffFetch } from "@/lib/cv-handoff.mjs";
 
 // Single choke point over everything the dashboard serves. Every request is
 // gated on the same-origin + loopback guard before it can reach a route handler
@@ -21,9 +22,16 @@ import {
 // from a chrome-extension:// origin, which Fetch Metadata always reports as
 // "cross-site", so every one of its requests is refused otherwise.
 export function proxy(req: NextRequest) {
+  // A read of a CV handoff link (/api/cv-handoff/<token>) comes from the job
+  // application page Claude in Chrome is attaching the CV to, so Fetch Metadata
+  // reports it cross-site. The token is the permission there (see
+  // lib/cv-handoff.mjs), so only the Host layer of the guard applies: with no
+  // Sec-Fetch-Site and no Origin, checkRequest checks the Host and nothing else.
+  // Minting a link (POST /api/cv-handoff) is not exempt.
+  const handoff = isCvHandoffFetch(req.method, req.nextUrl.pathname);
   const decision = checkRequest({
-    secFetchSite: req.headers.get("sec-fetch-site"),
-    origin: req.headers.get("origin"),
+    secFetchSite: handoff ? null : req.headers.get("sec-fetch-site"),
+    origin: handoff ? null : req.headers.get("origin"),
     host: req.headers.get("host"),
     allowedHosts: parseAllowedHosts(process.env.CAREER_OPS_WEB_ALLOWED_HOSTS),
     allowedOrigins: parseAllowedOrigins(process.env.CAREER_OPS_ALLOWED_ORIGINS),

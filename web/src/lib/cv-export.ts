@@ -22,6 +22,7 @@ export type CvExportRecord = {
 
 type ExportCore = {
   exportFileName(id: string, company: string, title: string): string;
+  exportDir(root: string): string;
   exportRecords(root: string): { record: CvExportRecord; pdf: string | null }[];
   writeExport(root: string): { dir: string; manifest: string; files: { file: string; id: string; company: string; job_title: string; job_url: string | null }[] };
 };
