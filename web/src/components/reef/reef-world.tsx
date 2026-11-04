@@ -368,6 +368,19 @@ export function ReefWorld({ data }: { data: ReefData }) {
   const panelRef = useRef<HTMLElement>(null);
   const [sel, setSel] = useState<string | null>(null);
   const selected = data.jobs.find((j) => j.id === sel) ?? null;
+  // The open job rides in the address bar (/reef?job=103), so Claude in
+  // Chrome's career-reef-cv skill can tell which job was clicked, and a reload
+  // keeps it open.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("job");
+    if (id && data.jobs.some((j) => j.id === id)) setSel(id);
+  }, [data.jobs]);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (sel) url.searchParams.set("job", sel);
+    else url.searchParams.delete("job");
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
+  }, [sel]);
   const pick = (id: string) => {
     setSel(id);
     // Under xl the panel sits below the reef: bring the details into view.

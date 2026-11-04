@@ -15,27 +15,51 @@ You cannot upload files from the user's computer yourself. Instead, Career Reef
 makes a short-lived link to the CV, and a small script that you run in the
 application page downloads it and puts it into the resume upload.
 
+## Opening a Career Reef page yourself
+
+Career Reef refuses pages that another site, or you, open directly. The tab
+then shows `{"error":"cross-origin request refused (Sec-Fetch-Site: ...)"}`.
+That tab still belongs to Career Reef, so to open a Career Reef page:
+
+1. Open `http://localhost:3000` in a **new tab**. Never use the user's job
+   site tab for this.
+2. Run this JavaScript in that new tab, with the path you want (for example
+   `/reef`): `location.href = '/reef'`. Career Reef accepts it because it
+   comes from its own page.
+
+If `localhost:3000` does not load at all, Career Reef is not running. Tell the
+user and stop. They start it with `npm run dev` in `C:\career-ops\web`.
+
 ## Step 1: Find the job
 
 1. List the open tabs. Find the **Career Reef tab** (`localhost:3000` or
    `127.0.0.1:3000`) and the **application tab** (the job site).
-2. If no Career Reef tab is open, open `http://localhost:3000` in a new tab. If
-   it does not load, tell the user Career Reef is not running and stop. They
-   start it with `npm run dev` in `C:\career-ops\web`.
-3. Get the job's **pipeline number**:
-   - If the user is on, or just came from, a Career Reef job page
-     `http://localhost:3000/pipeline/<number>`, use that number.
-   - Otherwise, run this JavaScript **in the Career Reef tab**, with the
-     application tab's URL:
+2. If no Career Reef tab is open, open one as described above. The scripts in
+   steps 1 and 2 also work in a tab that shows the refused message.
+3. Get the job's **pipeline number**. Try these in order:
+   - **The job the user clicked in Career Reef.** Look at every Career Reef
+     tab's URL. A `job` parameter (`/reef?job=<number>`, the Reef Watch page
+     with a job open) or a job page (`/pipeline/<number>`) gives the number.
+     If several Career Reef tabs name different jobs, use the active or most
+     recent one, and check it against the application page in step 2.
+   - **The application page.** Read the application tab and note its job
+     number and job title. CalCareers shows a job control number such as
+     `JC-537496`. NEOGOV, Workday and others show a job or requisition number.
+     Then run this JavaScript **in the Career Reef tab**, with the application
+     tab's URL and that text as the hint:
 
      ```js
-     await fetch('/api/apply/extension/match?url=' + encodeURIComponent('APPLICATION_TAB_URL')).then(r => r.json())
+     await fetch('/api/apply/extension/match?url=' + encodeURIComponent('APPLICATION_TAB_URL') + '&hint=' + encodeURIComponent('JOB NUMBER AND TITLE FROM THE PAGE')).then(r => r.json())
      ```
 
-     It returns `{n, company, title}`, or `{}` when no pipeline job matches.
+     It returns `{n, company, title, via}`, or `{}` when no pipeline job
+     matches. `via` is `url`, `id` or `hint-id` for a match on the posting's
+     number. `hint-title` means only the title matched: tell the user which
+     job you matched (company and title) and wait for their OK before you
+     attach.
    - If you still have no number, ask the user which job it is, or ask them to
-     click it in Career Reef. Never guess. Never attach a CV made for a
-     different job.
+     click it in Career Reef's Reef Watch. Never guess. Never attach a CV made
+     for a different job.
 
 ## Step 2: Get the CV link
 
@@ -56,8 +80,9 @@ await fetch('/api/cv-handoff', { method: 'POST', headers: { 'Content-Type': 'app
 
 ## Step 3a: Show the CV ("add it to my chat")
 
-Open `http://localhost:3000/api/cv-pdf?application=PIPELINE_NUMBER` in a new
-tab. Chrome shows the PDF. Tell the user the file name (`name` from step 2).
+Open the Career Reef page `/api/cv-pdf?application=PIPELINE_NUMBER` in a new
+tab, as described in "Opening a Career Reef page yourself". Chrome shows the
+PDF. Tell the user the file name (`name` from step 2).
 If they want you to read it, use the page-text tool on that tab. If no text
 comes back, say so instead of guessing what the CV says.
 
