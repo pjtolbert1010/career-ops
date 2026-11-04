@@ -323,3 +323,19 @@ html.dark .co-cost[data-tone="free"]{color:hsl(158 64% 60%);background:hsl(158 6
 .co-cost[data-tone="spend"]{color:hsl(35 9% 34%);background:hsl(35 8% 46% / .12);border-color:hsl(35 8% 46% / .26)}
 html.dark .co-cost[data-tone="spend"]{color:hsl(35 8% 70%);background:hsl(35 6% 60% / .12);border-color:hsl(35 6% 60% / .24)}
 .co-cost svg{width:.85em;height:.85em}
+
+/* Reef Watch (/reef). Rounded system faces stand in for the design's Fredoka/Nunito:
+   the build stays offline, so no Google font fetch. */
+.reef-root{font-family:ui-rounded,"SF Pro Rounded","Segoe UI Variable Display","Segoe UI",var(--font-sans)}
+.reef-root a{color:#0b5d7a}
+.reef-display{font-family:ui-rounded,"SF Pro Rounded","Segoe UI Variable Display","Segoe UI",var(--font-sans);letter-spacing:-.01em}
+@keyframes reef-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes reef-rise{0%{transform:translateY(0);opacity:0}15%{opacity:.7}100%{transform:translateY(-640px);opacity:0}}
+@keyframes reef-sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+.reef-bob{animation:reef-bob 3.2s ease-in-out infinite}
+.reef-sway{transform-origin:bottom center;animation:reef-sway 4s ease-in-out infinite}
+.reef-bubble{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.55);animation:reef-rise linear infinite}
+.reef-hut{cursor:pointer;transition:transform .2s}
+.reef-hut:hover{transform:translateY(-4px)}
+.reef-fish{transition:left .9s ease-in-out,top .9s ease-in-out}
+@media (prefers-reduced-motion:reduce){.reef-bob,.reef-sway,.reef-bubble{animation:none}.reef-bubble{display:none}.reef-fish,.reef-hut{transition:none}}

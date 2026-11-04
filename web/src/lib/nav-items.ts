@@ -1,4 +1,4 @@
-import { ListChecks, FileText, Settings, ClipboardList } from "lucide-react";
+import { ListChecks, FileText, Settings, ClipboardList, Fish } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
 // Single source of truth for the app's primary destinations — shared by the
@@ -15,6 +15,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/pipeline", label: "Pipeline", icon: ListChecks },
   { href: "/answers", label: "Answers", icon: ClipboardList },
+  { href: "/reef", label: "Reef", icon: Fish },
   { href: "/cv", label: "CV", icon: FileText },
   { href: "/config", label: "Config", icon: Settings },
 ];
