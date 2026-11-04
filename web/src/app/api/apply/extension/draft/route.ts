@@ -10,7 +10,7 @@ import { runPlanner, type PlannerField } from "@/lib/apply/planner";
 import { extractJsonObject } from "@/lib/extract-json-object.mjs";
 import { readJsonObject } from "@/lib/json-body";
 import { findEntry, loadBank, normalizeQuestion } from "@/lib/apply/answer-bank.mjs";
-import { loadAnswers, lookupByLabel } from "@/lib/answers.mjs";
+import { loadAnswers, lookupByLabel, lookupInLabel } from "@/lib/answers.mjs";
 import { eeoDecline } from "@/lib/apply/eeo-decline.mjs";
 
 export const runtime = "nodejs";
@@ -70,7 +70,9 @@ export async function POST(req: Request) {
     }
   };
 
-  const resolved = body.cliId ? resolveCliOrFallback(body.cliId as string) : null;
+  // A tab the user turned on by hand (not opened from the dashboard) has no
+  // CLI choice with it: the saved CLI, or the only installed one, drafts.
+  const resolved = resolveCliOrFallback((body.cliId as string | undefined) ?? "");
   if (!resolved) return Response.json({ error: cliUnavailableError((body.cliId as string) ?? "").error }, { status: 400 });
   const { spec, binPath } = resolved;
 
@@ -103,7 +105,9 @@ export async function POST(req: Request) {
       continue;
     }
     if (entry) essays.push(`- "${entry.question}": ${entry.answer}`);
-    const known = f.type !== "textarea" && f.type !== "file" ? lookupByLabel(normalizeQuestion(f.label), fixed as never) : null;
+    const short = f.type !== "textarea" && f.type !== "file";
+    // The exact label first; then a saved label inside a longer question.
+    const known = short ? (lookupByLabel(normalizeQuestion(f.label), fixed as never) ?? lookupInLabel(f.label, fixed as never)) : null;
     if (known && !known.sensitive && known.value.trim()) {
       fromBank[f.id] = { value: known.value, needs_confirmation: false, source: "answers.yml" };
       continue;
@@ -122,7 +126,15 @@ export async function POST(req: Request) {
     const parsed = extractJsonObject(result.buf);
     if (!parsed.obj) {
       log(`extension draft: unparseable output (code=${result.code} signal=${result.signal})`);
-      return Response.json({ error: result.buf.trim() ? "couldn't parse the planner's answer" : "planner produced no output" }, { status: 500 });
+      // A CLI that fails (out of quota, signed out) says why on stderr: show
+      // that line, so the badge names the problem instead of "no output".
+      const why = (result.stderr ?? "")
+        .split(/\r?\n/)
+        // eslint-disable-next-line no-control-regex
+        .map((l) => l.replace(/\u001b\[[0-9;]*m/g, "").trim())
+        .find((l) => /error|quota|limit|denied|login|log in|sign in|auth/i.test(l));
+      const err = result.buf.trim() ? "couldn't parse the planner's answer" : why ? `${spec.name} failed: ${why.slice(0, 200)}` : "planner produced no output";
+      return Response.json({ error: err }, { status: 500 });
     }
     obj = parsed.obj as Record<string, unknown>;
     truncated = parsed.truncated;

@@ -65,3 +65,34 @@ export function lookupByLabel(label, data = loadAnswers()) {
   }
   return null;
 }
+
+// Sections whose saved answers may fill a question that only CONTAINS one of
+// their labels ("2.0 Are you currently authorized to work in the United
+// States?"). Pay and government IDs stay out: those always need the user.
+const CONTAINED_SECTIONS = ["contact", "work_authorization", "experience", "eeo", "referral"];
+
+/**
+ * A saved answer whose label appears, as whole words, inside a longer form
+ * question. Only labels of two or more words, or one word of nine letters or
+ * more ("sponsorship", "disability"), count: a short word such as "state"
+ * appears in too many unrelated questions. The longest matching label wins.
+ */
+export function lookupInLabel(label, data = loadAnswers()) {
+  const hay = ` ${String(label).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ")} `;
+  let best = null;
+  let bestLen = 0;
+  for (const section of CONTAINED_SECTIONS) {
+    for (const entry of Object.values(data[section] ?? {})) {
+      if (entry.sensitive) continue;
+      for (const candidate of entry.labels) {
+        const c = candidate.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+        if (!c || (!c.includes(" ") && c.length < 9)) continue;
+        if (hay.includes(` ${c} `) && c.length > bestLen) {
+          best = entry;
+          bestLen = c.length;
+        }
+      }
+    }
+  }
+  return best;
+}

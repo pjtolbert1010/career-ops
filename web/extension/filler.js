@@ -1,4 +1,5 @@
-// career-ops Apply: injected into every frame of a tab the dashboard opened.
+// career-ops Apply: injected into every frame of a tab where the user turned
+// career-ops on (toolbar button), until they turn it off again.
 //
 // Presses the posting's own Apply button when the page shows no form yet,
 // waits out sign-in pages, then reads the application form, asks career-ops
@@ -8,10 +9,14 @@
 // the planner marks needs_confirmation (legal, visa, salary, demographic) are
 // left blank and outlined for the user.
 (() => {
-  if (window.__careerOpsFiller) return;
-  window.__careerOpsFiller = true;
+  // Turned off and on again in the same page: this frame already has a filler.
+  if (window.__careerOpsFiller) {
+    window.__careerOpsFiller.start();
+    return;
+  }
 
   const TOP = window === window.top;
+  let stopped = false;
   let busy = false;
   let batch = 0;
   let filledAny = false;
@@ -283,7 +288,12 @@
       }
       const type = tag === "textarea" ? "textarea" : ["email", "tel", "url", "number", "date", "checkbox", "file"].includes(itype) ? itype : "text";
       const empty = type === "checkbox" ? !el.checked : type === "file" ? !(el.files && el.files.length) : !el.value;
-      fields.push({ id, type, label: clean(labelFor(el)), required, maxLength: el.maxLength > 0 ? el.maxLength : undefined, el, empty });
+      let label = clean(labelFor(el));
+      if (type === "file" && (!label || /^(attach|upload|browse|choose( a)? file|select( a)? file|add( a)? file)$/i.test(label))) {
+        const key = `${el.id || ""} ${el.name || ""}`.replace(/[_-]+/g, " ").trim();
+        if (key) label = clean(`${label ? label + ": " : ""}${key}`);
+      }
+      fields.push({ id, type, label, required, maxLength: el.maxLength > 0 ? el.maxLength : undefined, el, empty });
     }
     return fields;
   }
@@ -306,6 +316,9 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
     el.dispatchEvent(new Event("blur", { bubbles: true }));
   }
+  // "I choose not to identify" and the form's own wording for it ("Decline To
+  // Self Identify", "I don't wish to answer") are the same answer.
+  const DECLINE = /decline|not (wish|want) to (answer|identify|disclose|say|self)|prefer not|choose not|rather not/i;
   function bestMatch(options, value) {
     const v = String(value).trim().toLowerCase();
     if (!v) return -1;
@@ -313,7 +326,21 @@
     let i = opts.indexOf(v);
     if (i < 0) i = opts.findIndex((o) => o.startsWith(v) || v.startsWith(o));
     if (i < 0) i = opts.findIndex((o) => o.includes(v) || (o.length > 2 && v.includes(o)));
+    if (i < 0 && DECLINE.test(v)) i = opts.findIndex((o) => DECLINE.test(o));
     return i;
+  }
+
+  // React-select dropdowns (Greenhouse, Ashby and others) ignore synthetic
+  // clicks and keys. The background reads their options and picks one through
+  // the component itself, in the page's own JavaScript world.
+  function reactSelect(f, op, value) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "react-select", id: f.el.getAttribute("data-co-field"), op, value }, (r) => resolve(chrome.runtime.lastError ? null : r));
+      } catch {
+        resolve(null);
+      }
+    });
   }
   function mark(el, color, title) {
     if (!el) return;
@@ -324,7 +351,8 @@
 
   async function fillOne(f, value, cv) {
     if (f.type === "file") {
-      if (!cv || !RESUME.test(f.label) || /cover/i.test(f.label)) return false;
+      const what = `${f.label} ${f.el.id || ""} ${f.el.name || ""}`;
+      if (!cv || !RESUME.test(what) || /cover/i.test(what)) return false;
       const bytes = Uint8Array.from(atob(cv.base64), (c) => c.charCodeAt(0));
       const dt = new DataTransfer();
       dt.items.add(new File([bytes], cv.name, { type: "application/pdf" }));
@@ -345,10 +373,16 @@
       return true;
     }
     if (f.type === "select" && f.combobox) {
+      const r = await reactSelect(f, "select", String(value));
+      if (r && r.ok) return true;
+      if (r && r.found) return false; // a react-select with no option matching the answer
       f.el.focus();
       setNative(f.el, String(value));
       await sleep(700);
-      const opts = Array.from(document.querySelectorAll("[role=option]"));
+      // Only this dropdown's own options: a page can keep other lists in the
+      // DOM (Greenhouse's hidden phone-country list has 244 options).
+      const own = f.el.getAttribute("aria-controls") && document.getElementById(f.el.getAttribute("aria-controls"));
+      const opts = Array.from((own || document).querySelectorAll("[role=option]")).filter((o) => own || o.offsetParent !== null);
       const i = bestMatch(opts.map((o) => o.textContent || ""), value);
       if (i < 0) return false;
       opts[i].dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
@@ -479,7 +513,7 @@
   }
 
   async function scan() {
-    if (busy) return;
+    if (busy || stopped) return;
     if (onLoginPage()) {
       if (TOP && !filledAny) badge("Sign in here. Filling starts on its own once the application form shows.");
       return;
@@ -496,16 +530,26 @@
       const idle = onStep
         ? "Nothing blank to fill on this step. Check it, then click Next yourself. Filling starts again on the next step."
         : "Waiting for the application form. Click the site's Apply button if it has one.";
-      if (TOP && !filledAny && (!badgeText || badgeText.startsWith("Opening") || badgeText.startsWith("Waiting") || badgeText.startsWith("Nothing blank"))) badge(idle);
+      if (TOP && !filledAny && (!badgeText || badgeText.startsWith("On") || badgeText.startsWith("Opening") || badgeText.startsWith("Waiting") || badgeText.startsWith("Nothing blank"))) badge(idle);
       return;
+    }
+    busy = true;
+    for (const f of todo) {
+      if (!f.combobox) continue;
+      const r = await reactSelect(f, "options");
+      if (r && r.ok && r.options && r.options.length) f.options = r.options;
     }
     fields.forEach((f) => known.set(f.id, f));
     busy = true;
     batch += 1;
     badge(`Drafting answers for ${todo.length} fields. This can take a minute or two.`);
     const res = await draft(document.title, todo.map(({ id, type, label, required, options, maxLength }) => ({ id, type, label, required, options, maxLength })));
+    if (stopped) {
+      busy = false;
+      return;
+    }
     if (res.error) {
-      badge(`Couldn't draft answers: ${res.error}`, "err");
+      badge(`Couldn't draft answers: ${res.error}`, "err", true);
       busy = false;
       return;
     }
@@ -513,7 +557,13 @@
     let confirm = 0;
     let notNeeded = 0;
     let optional = 0;
-    for (const [i, f] of todo.entries()) {
+    // Choices first, typing second: picking a choice can re-render the fields
+    // around it (Greenhouse's phone country code empties the phone number),
+    // and an "if yes, explain" field reads the choice above it.
+    const isChoice = (f) => f.type === "select" || f.type === "radio" || f.type === "checkbox";
+    const order = [...todo.entries()].sort((x, y) => Number(!isChoice(x[1])) - Number(!isChoice(y[1])));
+    const typed = [];
+    for (const [i, f] of order) {
       const a = res.answers ? res.answers[f.id] : null;
       const value = a && typeof a === "object" ? a.value : a;
       const target = f.group ? f.group[0] : f.el;
@@ -536,9 +586,22 @@
         if (await fillOne(f, value, res.cv)) {
           filled += 1;
           mark(target, "#16a34a");
+          if (f.el && !isChoice(f) && f.type !== "file") typed.push([f, value]);
         }
       } catch {
         /* leave it for the user */
+      }
+    }
+    // A text field the page emptied again while the rest filled gets its
+    // answer once more.
+    await sleep(500);
+    for (const [f, value] of typed) {
+      if (document.contains(f.el) && !f.el.value) {
+        try {
+          await fillOne(f, value, res.cv);
+        } catch {
+          /* leave it for the user */
+        }
       }
     }
     filledAny = true;
@@ -561,13 +624,43 @@
     timer = setTimeout(scan, 1200);
   }
 
-  chrome.runtime.sendMessage({ type: "job" }, (job) => {
-    if (chrome.runtime.lastError || !job) return;
-    new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
-    // Many sites reveal the form after Apply by changing a class or style, or
-    // by showing a frame that already loaded hidden. Neither adds elements, so
-    // keep looking every few seconds until the first fill.
-    const poll = setInterval(() => (filledAny ? clearInterval(poll) : busy || scan()), 2500);
-    schedule();
+  let observer = null;
+  let poll = null;
+  function start() {
+    chrome.runtime.sendMessage({ type: "job" }, (job) => {
+      if (chrome.runtime.lastError || !job) return;
+      stopped = false;
+      if (TOP && !filledAny) {
+        badge(
+          job.n
+            ? `On for #${job.n} ${job.company}. Looking for the application form…`
+            : job.unreachable
+              ? "On, but the career-ops dashboard didn't answer. Is it running? Looking for the application form anyway…"
+              : "On. This page didn't match a job in your pipeline, so the resume upload may be left for you. Looking for the application form…",
+        );
+      }
+      if (!observer) {
+        observer = new MutationObserver(schedule);
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      }
+      // Many sites reveal the form after Apply by changing a class or style, or
+      // by showing a frame that already loaded hidden. Neither adds elements, so
+      // keep looking every few seconds until the first fill.
+      clearInterval(poll);
+      poll = setInterval(() => (filledAny ? clearInterval(poll) : busy || scan()), 2500);
+      schedule();
+    });
+  }
+  // The toolbar button again: stop here. What is already filled stays.
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type !== "stop") return;
+    stopped = true;
+    clearTimeout(timer);
+    clearInterval(poll);
+    if (observer) observer.disconnect();
+    observer = null;
+    if (TOP) document.getElementById("career-ops-badge")?.remove();
   });
+  window.__careerOpsFiller = { start };
+  start();
 })();

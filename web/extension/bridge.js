@@ -26,3 +26,13 @@ window.addEventListener("message", (e) => {
     },
   );
 });
+
+// The CLI picked on the dashboard's Config page, and this dashboard's address,
+// for a tab the user turns career-ops on in by hand (not opened from Apply).
+try {
+  const raw = localStorage.getItem("career-ops:config");
+  const cliId = raw ? JSON.parse(raw).cliId : "";
+  if (chrome.runtime && chrome.runtime.id) chrome.runtime.sendMessage({ type: "config", cliId: typeof cliId === "string" ? cliId : "" }).catch(() => {});
+} catch {
+  /* no saved config */
+}

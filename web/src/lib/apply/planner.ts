@@ -48,7 +48,7 @@ export type PlannerField = {
  * spawnHeadlessCli would not start the CLI at all (#2507): the argv contradicted
  * the capability record, so nothing ran and `buf` is empty by construction.
  */
-export type PlannerRun = { buf: string; code: number | null; signal: NodeJS.Signals | null; refused?: string };
+export type PlannerRun = { buf: string; code: number | null; signal: NodeJS.Signals | null; refused?: string; stderr?: string };
 
 export function runPlanner(opts: {
   /** Undefined is not an error here: only the Claude carve-out below reads it. */
@@ -108,6 +108,7 @@ export function runPlanner(opts: {
       return resolve({ buf: "", code: null, signal: null, refused });
     }
     let buf = "";
+    let errTail = "";
     let firstByteAt = 0;
     const hb = setInterval(() => {
       log(`…running ${Math.round((Date.now() - t0) / 1000)}s · ${buf.length} chars received`);
@@ -121,6 +122,7 @@ export function runPlanner(opts: {
     });
     child.stderr.on("data", (d: Buffer) => {
       const e = d.toString().trim();
+      errTail = `${errTail}\n${e}`.slice(-2000);
       if (e) log(`stderr: ${e.slice(0, 160).replace(/\s+/g, " ")}`);
     });
     const killer = setTimeout(() => {
@@ -134,7 +136,7 @@ export function runPlanner(opts: {
     child.on("close", (code, signal) => {
       clearTimeout(killer);
       clearInterval(hb);
-      resolve({ buf, code, signal });
+      resolve({ buf, code, signal, stderr: errTail });
     });
     child.on("error", (e) => {
       clearTimeout(killer);

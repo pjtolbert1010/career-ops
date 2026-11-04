@@ -1,16 +1,60 @@
 {
   "manifest_version": 3,
   "name": "career-ops Apply",
-  "version": "0.1.0",
-  "description": "Opens a career-ops job posting in a new tab of your own Chrome and fills the application after you sign in. Never submits.",
+  "version": "0.2.0",
+  "description": "Fills a job application in your own Chrome when you click its toolbar button. Runs only on job sites, never submits.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmpYjY+BSlqpCfK8RaKe7oLNlxKJj49v6o3CQSSnYl44bth2ekFwb5bfkUnNdZfvcCcBa4/h2pggQgETWMJVSjUj5eRWHWsNqfL7kE9mGM+g1qEDEycpsebrAfi1QxwlNP6H4up3+WCBe77oH2nCFttxZwC3zUEWiFA7RzvfqJcfcWxe8/QkOg4csFewlNorz3kaMKdp5lRcQLCP1n2Woban8nkX16sup0lDek0rvExKnk/xZNpNWeSA69LarStTYiZ75mP6A+agae1EJRbywO7PQ6WD8InttQvp6JVYavS3AfElOo/MKXJrxchszKhTT/0CEUpgrcsESjquOwfRmNwIDAQAB",
   "permissions": [
+    "activeTab",
     "scripting",
     "storage",
     "webNavigation"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*.calcareers.ca.gov/*",
+    "https://*.jobs.ca.gov/*",
+    "https://*.governmentjobs.com/*",
+    "https://*.schooljobs.com/*",
+    "https://*.calopps.org/*",
+    "https://*.jobaps.com/*",
+    "https://*.usajobs.gov/*",
+    "https://*.edjoin.org/*",
+    "https://*.greenhouse.io/*",
+    "https://*.lever.co/*",
+    "https://*.ashbyhq.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.myworkdaysite.com/*",
+    "https://*.workday.com/*",
+    "https://*.icims.com/*",
+    "https://*.smartrecruiters.com/*",
+    "https://*.jobvite.com/*",
+    "https://*.bamboohr.com/*",
+    "https://*.workable.com/*",
+    "https://*.applytojob.com/*",
+    "https://*.breezy.hr/*",
+    "https://*.recruitee.com/*",
+    "https://*.paylocity.com/*",
+    "https://*.ultipro.com/*",
+    "https://*.ukg.com/*",
+    "https://*.adp.com/*",
+    "https://*.taleo.net/*",
+    "https://*.successfactors.com/*",
+    "https://*.oraclecloud.com/*",
+    "https://*.csod.com/*",
+    "https://*.brassring.com/*",
+    "https://*.dayforcehcm.com/*",
+    "https://*.paycomonline.net/*",
+    "https://*.rippling.com/*",
+    "https://*.teamtailor.com/*",
+    "https://*.jazzhr.com/*",
+    "https://*.pageuppeople.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.indeed.com/*",
+    "https://*.ziprecruiter.com/*",
+    "https://*.wellfound.com/*",
+    "https://*.glassdoor.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -26,5 +70,19 @@
       ],
       "run_at": "document_start"
     }
-  ]
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
+  "action": {
+    "default_title": "career-ops: fill this application (click again to stop)"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+F"
+      },
+      "description": "Fill this application with career-ops"
+    }
+  }
 }

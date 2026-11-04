@@ -46,3 +46,22 @@ test("lookupByLabel matches case-insensitively", () => {
   const data = { contact: { email: { value: "a@b.test", labels: ["Email Address"] } } };
   assert.equal(lookupByLabel("email address", data).value, "a@b.test");
 });
+
+import { lookupInLabel } from "../../src/lib/answers.mjs";
+
+test("lookupInLabel: a long question containing a saved label gets that answer", () => {
+  const data = {
+    contact: { zip: { value: "95742", labels: ["zip", "zip code"] }, state: { value: "California", labels: ["state"] } },
+    work_authorization: {
+      authorized_to_work_us: { value: "Yes", labels: ["authorized to work"] },
+      requires_sponsorship: { value: "No", labels: ["sponsorship", "visa sponsorship"] },
+    },
+    compensation: { salary_floor: { value: "90000", labels: ["salary expectations"] } },
+  };
+  assert.equal(lookupInLabel("1.9 Please provide us YOUR CURRENT HOME ZIP CODE.", data)?.value, "95742");
+  assert.equal(lookupInLabel("2.0 Are you currently authorized to work in the United States?*", data)?.value, "Yes");
+  assert.equal(lookupInLabel("2.1 Do you now, or in the future, require visa sponsorship to continue working?", data)?.value, "No");
+  // a short single word does not count, and pay never fills this way
+  assert.equal(lookupInLabel("1.8 Your current home STATE", data), null);
+  assert.equal(lookupInLabel("What are your salary expectations?", data), null);
+});
