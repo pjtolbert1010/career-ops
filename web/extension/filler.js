@@ -542,7 +542,14 @@
       }
     }
     filledAny = true;
-    const extra = confirm ? ` ${confirm} outlined in orange need your answer.` : "";
+    // A page of only optional questions career-ops leaves to the user (a
+    // voluntary EEO survey, say) would otherwise read "Filled 0 of 0".
+    if (filled === 0 && confirm === 0 && optional > 0) {
+      badge(`Nothing for career-ops to fill on this page: its ${optional} questions are optional and left to you (demographic, legal or similar). Answer any you want, then click Save & Continue yourself. Filling starts again on the next page.`, "info", false);
+      busy = false;
+      return;
+    }
+    const extra =confirm ? ` ${confirm} outlined in orange need your answer.` : "";
     const skipped = notNeeded ? ` ${notNeeded} "if yes, explain" left blank (answered No).` : "";
     const left = optional ? ` ${optional} optional left blank.` : "";
     badge(`Filled ${filled} of ${todo.length - notNeeded - optional} fields.${extra}${skipped}${left} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled + notNeeded + optional < todo.length);

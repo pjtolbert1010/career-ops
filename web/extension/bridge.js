@@ -8,6 +8,10 @@ window.addEventListener("message", (e) => {
   if (e.source !== window || e.origin !== location.origin) return;
   const d = e.data;
   if (!d || d.source !== "career-ops-web" || d.type !== "apply") return;
+  // Reloading the extension leaves this copy running in tabs that were already
+  // open, cut off from the extension. Stay silent so the page falls back to
+  // its own apply window instead of waiting on a tab that never opens.
+  if (!chrome.runtime || !chrome.runtime.id) return;
   // Answer at once: waking the background worker and opening the tab can take
   // longer than the page waits before falling back to its own apply window.
   window.postMessage({ source: "career-ops-ext", type: "ack", reqId: d.reqId }, location.origin);
