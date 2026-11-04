@@ -7,6 +7,29 @@ import { AnswerBankView } from "@/components/answer-bank-view";
 type Entry = { value: string; labels: string[]; sensitive?: boolean };
 type Answers = Record<string, Record<string, Entry>>;
 
+
+// Plain-language names for the answer keys in config/answers.yml.
+const FIELD_NAMES: Record<string, string> = {
+  authorized_to_work_us: "Authorized to work in the US",
+  requires_sponsorship: "Requires visa sponsorship",
+  linkedin: "LinkedIn",
+  zip: "ZIP code",
+  eeo: "EEO",
+  race_ethnicity: "Race / ethnicity",
+  how_did_you_hear: "How did you hear about us",
+  referred_by_employee: "Referred by an employee",
+  drivers_license_number: "Driver's license number",
+  drivers_license_state: "Driver's license state",
+  drivers_license_type: "Driver's license class",
+  salary_floor: "Minimum salary",
+  years_experience: "Years of experience",
+};
+function fieldName(key: string): string {
+  if (FIELD_NAMES[key]) return FIELD_NAMES[key];
+  const words = key.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export function AnswersView() {
   const [answers, setAnswers] = useState<Answers>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -30,13 +53,13 @@ export function AnswersView() {
       <div className="mt-3 divide-y divide-border">{Object.entries(entries).map(([key, entry]) => {
         const id = `${section}.${key}`; const isRevealed = !entry.sensitive || revealed[id];
         return <div key={key} className="py-3 first:pt-0 last:pb-0">
-          <label htmlFor={id} className="block text-sm font-medium">{key.replaceAll("_", " ")}</label>
+          <label htmlFor={id} className="block text-sm font-medium">{fieldName(key)}</label>
           <div className="mt-2 flex gap-2">
             <input id={id} readOnly={!isRevealed} value={isRevealed ? (drafts[id] ?? entry.value) : "••••••••"} onChange={(e) => setDrafts((v) => ({ ...v, [id]: e.target.value }))} className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand/50" />
             {entry.sensitive && <button type="button" onClick={() => setRevealed((v) => ({ ...v, [id]: !v[id] }))} aria-label={isRevealed ? "Mask value" : "Reveal value"} className="rounded-lg border border-border px-3 text-muted">{isRevealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>}
             <button type="button" onClick={() => save(section, key)} className="inline-flex items-center gap-1 rounded-lg bg-brand px-3 text-sm text-brand-foreground">{saved === id && <Check className="size-4" />}Save</button>
           </div>
-          <p className="mt-1 text-xs text-faint">Labels: {entry.labels.join(", ")}</p>
+          <p className="mt-1 text-xs text-faint">Fills form fields named: {entry.labels.join(", ")}</p>
         </div>;
       })}</div>
     </section>)}</div>

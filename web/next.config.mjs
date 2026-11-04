@@ -7,6 +7,9 @@ process.env.NEXT_TELEMETRY_DISABLED = "1";
 const nextConfig = {
   // Disable automatic AGENTS.md generation on next dev which triggers HMR file-watcher reload loops
   agentRules: false,
+  // No floating Next.js "N" dev-tools badge: build errors still open the
+  // full-screen overlay, so the badge only added clutter.
+  devIndicators: false,
   // PDF.js resolves its local worker relative to its own package in Node.
   serverExternalPackages: ["pdfjs-dist"],
   // Two lockfiles exist on purpose (repo root + web/), so Next would infer the

@@ -17,7 +17,7 @@
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
-  --font-display: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-display: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", var(--font-inter), system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 }
 
@@ -338,3 +338,7 @@ html.dark .co-cost[data-tone="spend"]{color:#a6c6d1;background:hsl(195 20% 60% /
 .reef-hut{cursor:pointer;transition:transform .2s}
 .reef-hut:hover{transform:translateY(-4px)}
 @media (prefers-reduced-motion:reduce){.reef-bob,.reef-sway,.reef-bubble{animation:none}.reef-bubble{display:none}.reef-hut{transition:none}}
+
+/* Rounded display headings read thin at 400. In the base layer: beats the
+   h1-h6 reset, loses to any font-* utility. */
+@layer base { .font-display { font-weight: 600; } }

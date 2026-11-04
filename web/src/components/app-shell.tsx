@@ -13,10 +13,8 @@ import { PipelineProvider } from "@/components/pipeline/pipeline-provider";
 import { ApplyProvider } from "@/components/apply/apply-provider";
 import { ExploreProvider } from "@/components/explore/explore-provider";
 import { FirstScoreView } from "@/components/explore/first-score-view";
-import { BetaBanner } from "@/components/beta/beta-banner";
 import { WorkerPills } from "@/components/jobs/worker-pills";
 import { UsageMeter } from "@/components/usage-meter";
-import { instrumentSerif } from "@/lib/fonts";
 import { visibleNavItems, isActivePath } from "@/lib/nav-items";
 
 export function AppShell({ children, followupsEnabled }: { children: React.ReactNode; followupsEnabled: boolean }) {
@@ -67,17 +65,11 @@ export function AppShell({ children, followupsEnabled }: { children: React.React
 
           <WorkerPills />
 
-          <div className="mt-auto space-y-3 pb-16 pt-4">
+          <div className="mt-auto space-y-3 pb-4 pt-4">
             <UsageMeter />
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">Appearance</span>
-                <span className="font-mono text-[10px] text-faint">THEME</span>
-              </div>
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <div className="px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">Appearance</div>
               <ThemeToggle showLabel />
-              <div className="px-1">
-                <span className={`${instrumentSerif.className} text-sm text-faint`}>local-first · v0</span>
-              </div>
             </div>
           </div>
         </aside>
@@ -85,7 +77,6 @@ export function AppShell({ children, followupsEnabled }: { children: React.React
         <AssistantConsole />
         <BackToTop />
         <FirstScoreView />
-        <BetaBanner />
       </div>
       </ExploreProvider>
       </ApplyProvider>

@@ -9,7 +9,6 @@ import { CoMark } from "@/components/co-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WorkerPills } from "@/components/jobs/worker-pills";
 import { UsageMeter } from "@/components/usage-meter";
-import { instrumentSerif } from "@/lib/fonts";
 import { visibleNavItems, isActivePath } from "@/lib/nav-items";
 import { useJobs } from "@/components/jobs/job-store";
 
@@ -151,7 +150,7 @@ export function MobileNav({ followupsEnabled }: { followupsEnabled: boolean }) {
         onTouchEnd={onTouchEnd}
       >
         <div className="flex items-center justify-between px-4 py-3">
-          <span className={`${instrumentSerif.className} text-lg text-landing`}>Menu</span>
+          <span className="reef-display text-lg font-bold text-landing">Menu</span>
           <button
             type="button"
             onClick={() => setOpen(false)}
@@ -195,10 +194,7 @@ export function MobileNav({ followupsEnabled }: { followupsEnabled: boolean }) {
         <div className="co-msafe mt-auto space-y-3 border-t border-border px-4 pt-4">
           <UsageMeter />
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className={`${instrumentSerif.className} text-sm text-faint`}>local-first · v0</span>
-              <span className="font-mono text-[10px] text-faint">THEME</span>
-            </div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">Appearance</div>
             <ThemeToggle showLabel className="bg-surface-hover/40" />
           </div>
         </div>

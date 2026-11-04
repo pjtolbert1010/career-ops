@@ -230,7 +230,7 @@ export function ApplyView() {
               <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-500" />
               <div>
                 <span className="font-medium text-emerald-800 dark:text-emerald-400">The real form is now in front, pre-filled.</span>{" "}
-                <span className="text-muted">Review it and click Submit yourself — career-ops never submits for you.</span>
+                <span className="text-muted">Review it and click Submit yourself — Career Reef never submits for you.</span>
                 {a.url && /^https?:\/\//.test(a.url) && (
                   <div className="mt-2">
                     <a href={a.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-brand-text hover:underline">
