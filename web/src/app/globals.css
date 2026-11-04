@@ -337,5 +337,4 @@ html.dark .co-cost[data-tone="spend"]{color:#a6c6d1;background:hsl(195 20% 60% /
 .reef-bubble{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.55);animation:reef-rise linear infinite}
 .reef-hut{cursor:pointer;transition:transform .2s}
 .reef-hut:hover{transform:translateY(-4px)}
-.reef-fish{transition:left .9s ease-in-out,top .9s ease-in-out}
-@media (prefers-reduced-motion:reduce){.reef-bob,.reef-sway,.reef-bubble{animation:none}.reef-bubble{display:none}.reef-fish,.reef-hut{transition:none}}
+@media (prefers-reduced-motion:reduce){.reef-bob,.reef-sway,.reef-bubble{animation:none}.reef-bubble{display:none}.reef-hut{transition:none}}

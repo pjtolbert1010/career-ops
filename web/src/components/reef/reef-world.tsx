@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
-import type { CritterKind, ReefData, ReefJob, ReefZone } from "@/lib/reef-data";
+import type { CritterKind, ReefApplied, ReefData, ReefJob, ReefZone } from "@/lib/reef-data";
 import { cn } from "@/lib/cn";
 import { ApplyButton } from "@/components/apply-button";
 import { GeneratePdfButton } from "@/components/generate-pdf-button";
@@ -102,11 +102,102 @@ function Critter({ kind, color }: { kind: CritterKind; color: string }) {
   }
 }
 
-function Fish({ x, y, face, name }: { x: number; y: number; face: 1 | -1; name: string }) {
+const TRAIL = 9; // bubbles behind the fish
+const LAG = 0.14; // how fast the fish closes on its spot each frame (0..1)
+const REST_BEHIND = 46; // px the fish rests behind the cursor, opposite its heading
+const REST_BELOW = 30; // px below the cursor, so it never sits on what you point at
+
+/** The fish follows the mouse inside the reef, resting just behind and below
+ *  the cursor, with a bubble trail. Moved with transforms on refs, not React
+ *  state, so the reef does not re-render 60 times a second. */
+function FishFollower({ areaRef }: { areaRef: RefObject<HTMLDivElement | null> }) {
+  const fishRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<SVGSVGElement>(null);
+  const trailRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    const area = areaRef.current;
+    const fish = fishRef.current;
+    if (!area || !fish) return;
+    // Not gated on prefers-reduced-motion: the fish and trail move only with
+    // the user's own pointer, and the user asked for the trail. The reef's
+    // ambient motion (bob, sway, bubbles) still honors the setting in CSS.
+    let tx = 0, ty = 0, x = 0, y = 0, face = 1, shown = false, raf = 0;
+    const trail: { x: number; y: number }[] = [];
+
+    const place = () => {
+      const gx = tx - face * REST_BEHIND;
+      const gy = ty + REST_BELOW;
+      x += (gx - x) * LAG;
+      y += (gy - y) * LAG;
+      fish.style.transform = `translate(${x - 24}px, ${y - 19}px)`;
+      if (bodyRef.current) bodyRef.current.style.transform = `scaleX(${face})`;
+      // Bubbles leave from the tail and drift up as they age.
+      trail.unshift({ x: x - face * 22, y });
+      trail.length = Math.min(trail.length, TRAIL * 3);
+      trailRefs.current.forEach((dot, i) => {
+        const p = trail[i * 3];
+        if (!dot) return;
+        if (!p || !shown) { dot.style.opacity = "0"; return; }
+        const size = Math.max(3, 10 - i);
+        dot.style.width = dot.style.height = `${size}px`;
+        dot.style.transform = `translate(${p.x - size / 2}px, ${p.y - size / 2 - i * 3}px)`;
+        dot.style.opacity = String(0.7 * (1 - i / TRAIL));
+      });
+    };
+
+    const tick = () => {
+      place();
+      raf = requestAnimationFrame(tick);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
+      const r = area.getBoundingClientRect();
+      const nx = e.clientX - r.left;
+      const ny = e.clientY - r.top;
+      if (Math.abs(nx - tx) > 2) face = nx > tx ? 1 : -1;
+      if (!shown) { x = nx - face * REST_BEHIND; y = ny + REST_BELOW; }
+      tx = nx; ty = ny;
+      shown = true;
+      fish.style.opacity = "1";
+    };
+    const onLeave = () => {
+      shown = false;
+      fish.style.opacity = "0";
+    };
+
+    area.addEventListener("pointermove", onMove);
+    area.addEventListener("pointerleave", onLeave);
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      area.removeEventListener("pointermove", onMove);
+      area.removeEventListener("pointerleave", onLeave);
+    };
+  }, [areaRef]);
+
   return (
-    <div className="reef-fish pointer-events-none absolute z-20 h-[50px] w-16" style={{ left: x, top: y }}>
-      <div className="reef-display absolute -top-5 left-0 w-16 text-center text-xs font-semibold text-white">{name}</div>
-      <svg width="64" height="50" viewBox="0 0 64 50" aria-hidden="true" style={{ transform: `scaleX(${face})`, transition: "transform .2s" }}>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      {Array.from({ length: TRAIL }).map((_, i) => (
+        <div
+          key={i}
+          ref={(el) => { trailRefs.current[i] = el; }}
+          className="absolute left-0 top-0 rounded-full border-2 border-white/80"
+          style={{ opacity: 0 }}
+        />
+      ))}
+      <div ref={fishRef} className="absolute left-0 top-0 h-[38px] w-12 opacity-0 transition-opacity duration-300">
+        <Fish bodyRef={bodyRef} />
+      </div>
+    </div>
+  );
+}
+
+function Fish({ bodyRef }: { bodyRef: RefObject<SVGSVGElement | null> }) {
+  return (
+    <div>
+      <svg ref={bodyRef} width="48" height="38" viewBox="0 0 64 50" aria-hidden="true" style={{ transition: "transform .2s" }}>
         <path d="M10 25 L0 10 L0 40 Z" fill="#ff8a3d" />
         <ellipse cx="34" cy="25" rx="24" ry="17" fill="#ff8a3d" />
         <path d="M28 8 Q34 0 42 9" fill="#ffb37a" />
@@ -143,7 +234,6 @@ function JobDetail({ job, onClose }: { job: ReefJob; onClose: () => void }) {
           Back
         </button>
       </div>
-      <div className="text-[13px] font-bold text-[#5a6b73]">{job.critter} says:</div>
       <h2 className="reef-display text-2xl font-bold leading-tight">{job.title}</h2>
       <div className="text-[15px] font-bold text-[#2c4a58]">{job.employer}</div>
       <div className="flex flex-col gap-1.5">
@@ -213,15 +303,6 @@ function TideReport({ data }: { data: ReefData }) {
           {top.length ? top.map((j) => `${j.employer} ${j.title} (fit ${j.fit})`).join(" and ") : "Nothing on the Apply-First Reef yet."}
         </span>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label>Already in the net (don&apos;t re-apply)</Label>
-        {data.applied.length === 0 && <span className="text-[13px] text-[#5a6b73]">No applications yet.</span>}
-        {data.applied.map((a) => (
-          <div key={a.what + a.when} className="rounded-[10px] bg-[#f4ecdc] px-2.5 py-2 text-[13px] leading-snug">
-            <b>{a.what}</b> · {a.status} {a.when}
-          </div>
-        ))}
-      </div>
       {data.shallows.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <Label>The shallows: top pay under {data.targetLabel || "target"}</Label>
@@ -237,42 +318,70 @@ function TideReport({ data }: { data: ReefData }) {
   );
 }
 
+const NET_TONE: Record<string, string> = {
+  Applied: "#ffd166",
+  Responded: "#bde9f3",
+  Assessment: "#bde9f3",
+  Interview: "#c8f0c4",
+  Offer: "#ff8a3d",
+};
+
+/** Left column: everything already applied to. These never show on the reef. */
+function NetColumn({ applied }: { applied: ReefApplied[] }) {
+  return (
+    <aside aria-label="Applied jobs" className="order-1 w-full shrink-0 bg-[#08384c] p-5 text-[#e6f6f9] xl:sticky xl:top-0 xl:max-h-screen xl:w-[250px] xl:overflow-y-auto">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="reef-display text-xl font-bold">In the net</h2>
+        <span className="reef-display text-2xl font-bold tabular-nums text-[#ffd166]">{applied.length}</span>
+      </div>
+      <p className="mt-1 text-xs font-bold text-[#a6c6d1]">Applied. Kept off the reef so you never apply twice.</p>
+      {applied.length === 0 ? (
+        <p className="mt-4 text-sm text-[#a6c6d1]">No applications yet.</p>
+      ) : (
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-col">
+          {applied.map((a) => (
+            <li key={a.n} className="rounded-xl bg-white/[0.07] p-3 ring-1 ring-white/10">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[13px] font-extrabold leading-tight">{a.company}</span>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase text-[#0d2a3a]" style={{ background: NET_TONE[a.status] ?? "#ffd166" }}>
+                  {a.status}
+                </span>
+              </div>
+              <div className="mt-0.5 text-xs leading-snug text-[#cfe6ec]">{a.role}</div>
+              <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] font-bold text-[#a6c6d1]">
+                <span className="tabular-nums">{a.when}</span>
+                <span className="flex gap-2">
+                  {a.reportHref && <Link href={a.reportHref} className="!text-[#7fd3e6] hover:underline">Report</Link>}
+                  {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer" className="!text-[#7fd3e6] hover:underline">Posting</a>}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </aside>
+  );
+}
+
 export function ReefWorld({ data }: { data: ReefData }) {
   const worldRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const [sel, setSel] = useState<string | null>(null);
-  const [fish, setFish] = useState<{ x: number; y: number; face: 1 | -1 }>({ x: 420, y: 160, face: 1 });
   const selected = data.jobs.find((j) => j.id === sel) ?? null;
-
-  const swimTo = useCallback((x: number, y: number) => {
-    const w = worldRef.current;
-    const maxX = (w?.clientWidth ?? 900) - 72;
-    const maxY = (w?.scrollHeight ?? 800) - 60;
-    const nx = Math.max(10, Math.min(maxX, x));
-    const ny = Math.max(90, Math.min(maxY, y));
-    setFish((f) => ({ x: nx, y: ny, face: nx < f.x ? -1 : 1 }));
-  }, []);
-
-  const onWorldClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    swimTo(e.clientX - r.left - 32, e.clientY - r.top - 25);
-  };
-
-  const pick = (job: ReefJob, e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    const btn = e.currentTarget;
-    const w = worldRef.current;
-    if (w) {
-      const wr = w.getBoundingClientRect();
-      const br = btn.getBoundingClientRect();
-      swimTo(br.right - wr.left - 24, br.top - wr.top + 30);
+  const pick = (id: string) => {
+    setSel(id);
+    // Under xl the panel sits below the reef: bring the details into view.
+    if (window.matchMedia("(max-width: 1279px)").matches) {
+      requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     }
-    setSel(job.id);
   };
 
   return (
-    <div className="reef-root mx-auto my-6 flex w-full max-w-[1280px] flex-col overflow-hidden rounded-[18px] bg-[#e9f6f7] text-[#0d2a3a] lg:flex-row">
+    <div className="reef-root mx-auto my-6 flex w-full max-w-[1640px] flex-col overflow-hidden rounded-[18px] bg-[#e9f6f7] text-[#0d2a3a] xl:flex-row">
+      <NetColumn applied={data.applied} />
+
       {/* WORLD */}
-      <div ref={worldRef} onClick={onWorldClick} className="relative min-h-[800px] flex-1 cursor-pointer overflow-hidden bg-[#2a8fb0] pb-32">
+      <div ref={worldRef} className="relative order-2 min-h-[800px] min-w-0 flex-1 overflow-hidden bg-[#2a8fb0] pb-32">
         <div className="absolute inset-x-0 top-0 h-24 bg-[#7fd3e6]" />
         <div className="absolute -left-10 -right-10 bottom-0 h-28 rounded-t-[50%] bg-[#e8cf95]" />
         {[{ l: "7%", s: 12, d: "9s", w: "0s" }, { l: "42%", s: 8, d: "7s", w: "2s" }, { l: "71%", s: 14, d: "11s", w: "1s" }, { l: "93%", s: 10, d: "8s", w: "4s" }].map((b) => (
@@ -286,7 +395,7 @@ export function ReefWorld({ data }: { data: ReefData }) {
         <div className="relative z-10 flex flex-col gap-0.5 px-7 pt-4">
           <h1 className="reef-display text-[32px] font-bold text-[#08384c]">Reef Watch</h1>
           <p className="text-sm font-bold text-[#0b4a63]">
-            Your evaluated jobs, from the tracker · click anywhere to swim, click a neighbor to meet the job
+            Jobs you haven&apos;t applied to yet · click one to see the details and apply
           </p>
         </div>
 
@@ -306,8 +415,8 @@ export function ReefWorld({ data }: { data: ReefData }) {
                     return (
                       <button
                         key={j.id}
-                        onClick={(e) => pick(j, e)}
-                        aria-label={`${j.critter}: ${j.title} at ${j.employer}`}
+                        onClick={() => pick(j.id)}
+                        aria-label={`${j.title} at ${j.employer}, fit ${j.fit} of 10`}
                         aria-pressed={isSel}
                         className="reef-hut flex w-full flex-col items-center gap-1 rounded-xl border-0 bg-transparent p-0 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
                       >
@@ -318,8 +427,8 @@ export function ReefWorld({ data }: { data: ReefData }) {
                           className="flex w-full max-w-[160px] flex-col gap-px rounded-xl border-[3px] px-2 py-1.5 text-center"
                           style={{ background: isSel ? "#fff1e3" : "#fff", borderColor: isSel ? "#ff8a3d" : ZONE_RING[j.zone] }}
                         >
-                          <span className="reef-display text-[13px] font-semibold leading-tight">{j.critter}</span>
-                          <span className="line-clamp-2 text-[11px] font-bold leading-tight text-[#2c4a58]">{j.short} · {j.title}</span>
+                          <span className="reef-display line-clamp-2 text-[13px] font-semibold leading-tight">{j.employer}</span>
+                          <span className="line-clamp-2 text-[11px] font-bold leading-tight text-[#2c4a58]">{j.title}</span>
                           <span className="text-[11px] font-extrabold text-[#0b5d7a]">Fit {j.fit}/10</span>
                         </div>
                       </button>
@@ -331,11 +440,11 @@ export function ReefWorld({ data }: { data: ReefData }) {
           );
         })}
 
-        <Fish x={fish.x} y={fish.y} face={fish.face} name={data.swimmer} />
+        <FishFollower areaRef={worldRef} />
       </div>
 
       {/* PANEL */}
-      <aside className="w-full shrink-0 bg-[#fffaf0] p-6 lg:sticky lg:top-0 lg:max-h-screen lg:w-[380px] lg:overflow-y-auto">
+      <aside ref={panelRef} className="order-3 w-full shrink-0 bg-[#fffaf0] p-6 xl:sticky xl:top-0 xl:max-h-screen xl:w-[360px] xl:overflow-y-auto">
         {selected ? <JobDetail job={selected} onClose={() => setSel(null)} /> : <TideReport data={data} />}
       </aside>
     </div>
