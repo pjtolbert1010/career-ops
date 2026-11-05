@@ -102,6 +102,12 @@ function wantsCover(j: ReefJob): boolean {
 }
 
 /** Every document this posting needs is saved. */
+/** Reef Watch's "prepped" rule (reef-world.tsx isPrepped): tailored resume, plus the SOQ when needed. */
+function isPrepped(j: ReefJob): boolean {
+  const needsSoq = j.calcareers || j.needs.soq;
+  return j.pdfReady && j.docs.cv && (!needsSoq || j.docs.soq);
+}
+
 export function docsComplete(j: ReefJob): boolean {
   const needsSoq = j.calcareers || j.needs.soq;
   return j.docs.cv && (!needsSoq || j.docs.soq) && (!wantsCover(j) || j.docs.cover);
@@ -147,7 +153,9 @@ export async function readXData(): Promise<XData> {
       qualifications: (report && qualificationsFrom(report).length ? qualificationsFrom(report) : fallbackQuals(summary?.strengths ?? [], summary?.softGaps ?? [])),
       report: j.reportHref.replace("/pipeline/", ""),
       remote: isRemote(j.location, app?.notes ?? "", report ?? ""),
-      lane: docsComplete(j) && j.zone !== "kelp" ? "ready" : "prepare",
+      // Same rule as Reef Watch "Ready for review": the tailored resume, plus the
+      // SOQ when the posting needs one. A missing cover letter is flagged, not blocking.
+      lane: isPrepped(j) ? "ready" : "prepare",
     };
   });
   jobs.sort((a, b) => b.match - a.match);

@@ -72,6 +72,7 @@ export function QueueView({ jobs }: { jobs: XJob[] }) {
                   <span className="lux-eyebrow">{j.employer}</span>
                   <span className="lux-serif text-[1.35rem] leading-tight">{j.title}</span>
                   <DocDots job={j} />
+                  {j.zone === "kelp" && <span className="lux-tag self-start">Verify open first</span>}
                 </button>
                 <MatchScore match={j.match} />
                 <div className="flex flex-col gap-2">

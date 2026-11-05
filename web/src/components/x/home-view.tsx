@@ -42,7 +42,7 @@ export function HomeView({ data }: { data: XData }) {
             )}
           </h1>
           <p className="lux-lede m-0 max-w-xl">
-            Each one has a tailored resume and letter. Open it, the form fills itself, you read it and press Submit.
+            Each one has its tailored resume, plus the SOQ when the posting asks. Open it, the form fills itself, you read it and press Submit.
           </p>
         </div>
         <div className="flex flex-col gap-3">
