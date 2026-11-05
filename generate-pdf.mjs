@@ -2615,4 +2615,19 @@ if (isMain && process.argv[2] === '--pdf-server') {
   });
 }
 
+/**
+ * Log what normalizeTextForATS changed, in the same one-line form the CV
+ * render prints. generate-cover-letter.mjs (v1.39.0) imports it; this local
+ * generate-pdf.mjs predates it, so without it every cover letter render threw
+ * "reportAtsReplacements is not a function".
+ */
+export function reportAtsReplacements(replacements = {}, log = console.log) {
+  const total = Object.values(replacements).reduce((a, b) => a + b, 0);
+  if (total > 0) {
+    const breakdown = Object.entries(replacements).map(([k, v]) => `${k}=${v}`).join(', ');
+    log(`🧹 ATS normalization: ${total} replacements (${breakdown})`);
+  }
+  return total;
+}
+
 export { normalizeTextForATS, sectionKey };
