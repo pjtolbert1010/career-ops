@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { CvIngest } from "@/components/cv/cv-ingest";
 import type { XData, XPrefs } from "@/lib/x-data";
@@ -25,6 +25,14 @@ export function StartWizard({ prefs, resume }: { prefs: XPrefs; resume: XData["r
   const [remote, setRemote] = useState(prefs.remote);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
