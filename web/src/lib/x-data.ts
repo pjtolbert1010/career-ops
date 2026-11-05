@@ -85,6 +85,18 @@ function fallbackQuals(strengths: string[], gaps: string[]): Qualification[] {
   return [...strengths.slice(0, 4).map((text) => ({ text, met: "yes" as const })), ...gaps.slice(0, 3).map((text) => ({ text, met: "no" as const }))];
 }
 
+/** Remote, not hybrid: the location, the report's work-mode line, or the tracker note says so. */
+export function isRemote(location: string, notes: string, report: string): boolean {
+  const mode =
+    report.match(/^\|\s*(?:Work mode|Work arrangement|Remote)\s*\|([^|\n]*)/im)?.[1] ??
+    report.match(/^\*\*(?:Work mode|Remote|Location):\*\*([^\n]*)/im)?.[1] ??
+    "";
+  for (const t of [location, mode, notes]) {
+    if (/remote|telework/i.test(t)) return !/hybrid|on-?site/i.test(t);
+  }
+  return false;
+}
+
 function wantsCover(j: ReefJob): boolean {
   return !j.calcareers || j.needs.cover;
 }
@@ -130,7 +142,7 @@ export async function readXData(): Promise<XData> {
       gaps: summary?.softGaps ?? [],
       qualifications: (report && qualificationsFrom(report).length ? qualificationsFrom(report) : fallbackQuals(summary?.strengths ?? [], summary?.softGaps ?? [])),
       report: j.reportHref.replace("/pipeline/", ""),
-      remote: /remote/i.test(j.location) && !/hybrid/i.test(j.location),
+      remote: isRemote(j.location, app?.notes ?? "", report ?? ""),
       lane: docsComplete(j) && j.zone !== "kelp" ? "ready" : "prepare",
     };
   });
