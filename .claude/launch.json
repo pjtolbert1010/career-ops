@@ -4,8 +4,27 @@
     {
       "name": "career-ops-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "web", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "web",
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "career-ops-x",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "web/server.mjs",
+        "dev",
+        "-p",
+        "3100"
+      ],
+      "port": 3100,
+      "env": {
+        "CAREER_OPS_ROOT": "C:\\career-ops"
+      }
     }
   ]
 }

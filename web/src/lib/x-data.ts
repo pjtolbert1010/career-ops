@@ -49,27 +49,40 @@ export type XData = {
 
 /** Block B ("CV Match") rows: requirement + ✅ / ⚠️ / ❌, the aiapply checklist. */
 export function qualificationsFrom(report: string): Qualification[] {
-  const start = report.search(/^##\s*B\)/m);
+  const start = report.search(/^##\s*(B\)|.*CV Match)/im);
   if (start < 0) return [];
   const rest = report.slice(start);
   const end = rest.slice(3).search(/^##\s/m);
   const block = end < 0 ? rest : rest.slice(0, end + 3);
-  const rows = block.split(/\r?\n/).filter((l) => l.startsWith("|"));
+  const rows = block.split(/\r?\n/).filter((l) => l.trim().startsWith("|"));
   if (rows.length < 3) return [];
   const head = rows[0].split("|").map((c) => c.trim().toLowerCase());
-  const reqCol = head.findIndex((c) => c.startsWith("requirement"));
-  const matchCol = head.findIndex((c) => c === "match" || c.startsWith("match"));
-  if (reqCol < 0 || matchCol < 0) return [];
+  const reqCol = head.findIndex((c) => /requirement|qualification|criteria/.test(c));
+  let matchCol = head.findIndex((c) => /^(match|status|fit|verdict|met)\b/.test(c));
+  if (matchCol < 0) matchCol = head.length - 2; // last real cell (trailing "|" leaves an empty one)
+  if (reqCol < 0) return [];
   const out: Qualification[] = [];
   for (const row of rows.slice(2)) {
     const cells = row.split("|").map((c) => c.trim());
-    const text = cells[reqCol] ?? "";
-    const m = cells[matchCol] ?? "";
+    const text = (cells[reqCol] ?? "").replace(/\*\*/g, "");
     if (!text) continue;
-    const met: Qualification["met"] = m.includes("✅") ? "yes" : m.includes("❌") ? "no" : "partial";
-    out.push({ text: text.replace(/\*\*/g, ""), met });
+    out.push({ text, met: classify(cells[matchCol] ?? "") });
   }
   return out;
+}
+
+/** Report wording varies (emoji or words); read it as met / partly / not met. */
+function classify(cell: string): Qualification["met"] {
+  const c = cell.toLowerCase();
+  if (cell.includes("❌") || /\b(gap|missing|not met|no|none|lacking)\b/.test(c)) return "no";
+  if (cell.includes("⚠") || /partial|likely|adjacent|confirm|transferable|some/.test(c)) return "partial";
+  if (cell.includes("✅") || /strong|\bmet\b|\byes\b|exceeds|direct|match/.test(c)) return "yes";
+  return "partial";
+}
+
+/** Short reports have no Block B table: use the evaluation's strengths and gaps. */
+function fallbackQuals(strengths: string[], gaps: string[]): Qualification[] {
+  return [...strengths.slice(0, 4).map((text) => ({ text, met: "yes" as const })), ...gaps.slice(0, 3).map((text) => ({ text, met: "no" as const }))];
 }
 
 function wantsCover(j: ReefJob): boolean {
@@ -115,7 +128,7 @@ export async function readXData(): Promise<XData> {
       match: Math.round((Number.isFinite(score) ? score : 0) * 20),
       strengths: summary?.strengths ?? [],
       gaps: summary?.softGaps ?? [],
-      qualifications: report ? qualificationsFrom(report) : [],
+      qualifications: (report && qualificationsFrom(report).length ? qualificationsFrom(report) : fallbackQuals(summary?.strengths ?? [], summary?.softGaps ?? [])),
       report: j.reportHref.replace("/pipeline/", ""),
       remote: /remote/i.test(j.location) && !/hybrid/i.test(j.location),
       lane: docsComplete(j) && j.zone !== "kelp" ? "ready" : "prepare",
