@@ -55,7 +55,7 @@ else is optional.
    tracker, tools. Reuse `ApplyButton`, `GeneratePdfButton`, the `cover`
    worker, `/api/status`, `/api/keyword-match`, `/api/doctor`, `/api/profile`,
    `/api/cv/ingest`.
-4. Run on port 3100 with `CAREER_OPS_ROOT=C:\career-ops` so it reads the real
+4. Run on port 3100 (`.claude/launch.json` entry `career-ops-x`) with `CAREER_OPS_ROOT=C:\career-ops` so it reads the real
    data; Career Reef on 3000 keeps running.
 5. Verify each flow in the browser, then write the side-by-side comparison.
 
@@ -69,29 +69,38 @@ else is optional.
 - System-layer files edited on this branch (all under `web/`) could be
   overwritten by `update-system.mjs`; that is why this lives on its own branch.
 
-## 5. Side by side: Career Reef (main, :3000) vs Career ops X Ai apply (this branch, /x on :3101)
+## 5. Side by side: Career Reef (main, localhost:3000/reef) vs Career ops X Ai apply (this branch, localhost:3100/x)
 
-Checked in the browser on 2026-11-05 against the real data (CAREER_OPS_ROOT=C:\career-ops).
-Nothing was saved, generated or submitted during the checks.
+Both were checked in the browser on 2026-11-05 against the same real data (27 evaluated
+openings, 7 applied this week). Nothing was saved, generated or submitted during the checks.
 
-| Flow | Career Reef `/reef` | X `/x` | Better |
-|------|---------------------|--------|--------|
-| Home | Long editorial page: video hero, stats, openings, remote boards, review, pipeline, status. Beautiful, but the next action is a scroll away. | One headline ("1 job is ready to apply"), one primary button, setup checklist, 4 stats, top 3 matches, recent applications. | X for speed; Reef for atmosphere. |
-| Job matching | Cards with fit /10, zone tabs (Apply-first, closer look, verify). | Cards with match /100, fit label, "why it fits", ✓/~/✗ qualification checklist from the report's CV Match table; search, Remote only, Ready only, min score. | X (checklist and filters). Reef's verify-first zones are clearer about liveness. |
-| Job detail | Facts, why it fits, verification, Apply, Generate CV, documents. | Same actions plus full qualification checklist, "I submitted it" (marks Applied) and "Skip" (Discarded) with Undo. | X (fewer trips to the tracker). |
-| Apply queue | "Ready for review" list. | Two lanes: Ready to apply (Open & fill per job) and Needs documents ("Make the next 3 resumes" in one press). | X. |
-| Resume | `/cv` editor, separate. | Base resume, every tailored version, ATS keyword coverage per job (keyword-match.mjs). | X. |
-| Cover letter | Instructions to use Chrome skill or CLI. | Existing cover form inline in the job panel. | X, slightly. |
-| Tracker | Applied list on Reef; `/pipeline` table. | Board by stage with one-press moves (Responded, Interview, Rejected, Offer, Hired). | X for glanceability; `/pipeline` still better for bulk work. |
-| Onboarding | Onboarding banner, scattered pages. | 3-step wizard: resume import, roles/salary/where (writes only changed fields), done. | X. |
-| Tools | Menu drawer. | Tools hub with one-line descriptions. | Tie. |
+| Flow | Career Reef | Career ops X Ai apply | Better |
+|------|-------------|-----------------------|--------|
+| First screen | Full-screen video hero ("Your next role, curated"); numbers and jobs start one scroll down. | Headline "8 jobs are ready to apply", a Review and apply button, then a setup checklist (hidden once done), 4 numbers and the top 3 matches. | X for getting to work; Reef for atmosphere. |
+| Finding a job | 27 cards with fit /10 and tabs Apply-first / A closer look / Verify first; remote roles live in a separate Remote boards section. | The same 27 jobs with a match /100, a fit label, "why it fits" and a ✓/~/✗ checklist (e.g. Unit Manager: Contracts & Change Management at the Department of Water Resources: 4 met, 1 partly, "supervise, train and evaluate staff" not met). Search box, Remote only (9 jobs, e.g. Strategy & Operations Analyst at Datavant), Ready only, minimum score. | X. Reef's "Verify first" tab says more clearly which postings are unconfirmed; X shows a small "Verify open" tag instead. |
+| Job details | Drawer with facts, why it fits, next step, verification, Open & fill, Generate CV, documents, with written instructions for the cover letter and SOQ. | Drawer with the full checklist, a Draft cover letter button inline, Generate CV, Open & fill, plus "I submitted it" and "Skip this job" (each with Undo). | X. Fewer trips to the pipeline page to record what you did. |
+| Ready to apply | "Ready for review": the same 8 jobs (Department of Water Resources Unit Manager, County of Yolo Senior Administrative Services Analyst, City of Elk Grove Management Analyst I/II, Centene Project Manager II, Verra Mobility Project Manager, Datavant Strategy & Operations Analyst, Evio Contract Development Manager, Centene Program Manager IV), each with documents and Open & fill. | The same 8 jobs in the Ready lane, with Resume / Cover / SOQ dots showing which documents exist (7 of the 8 have no cover letter yet), Open & fill, I submitted it, Skip. | X, slightly: missing cover letters are visible at a glance. |
+| Making documents | Generate CV one job at a time from the drawer. | "Needs documents" lane (19 jobs) with one button that tailors resumes for the next 3 jobs missing one; cover letter and SOQ from the drawer. | X. |
+| Resume | Separate CV page (/cv). | One page: base resume summary, the 14 tailored versions, and an ATS keyword check against any job (e.g. 10% keyword coverage for the Department of Water Resources Unit Manager role, with the missing keywords listed). | X. |
+| Tracking | "Your applications" list on the Reef and the full pipeline table. | Board: Applied (7) / In process / Offer / Closed, with "Resume sent", evaluation and posting links, and one-press moves (Responded, Interview, Rejected, Offer, Hired). | X for a glance; the pipeline table is still better for bulk edits. |
+| Setup | Onboarding banner and separate pages. | 3-step wizard: resume import, job titles / salary floor and target / where you will work (only changed fields are written, with a backup), done. | X. |
+| Scanner status | "Reef Watch, at work" status panel (scanner, evaluator, workers). | One small box: last scan (1182 found, 18 new) and 271 postings waiting to be scored. | Reef (more detail). |
+| Other tools | Menu drawer. | Tools page with a one-line description per tool. | Tie. |
 
-Not exercised (they write real data or spend model usage): Save in the wizard, "Make the next 3
-resumes", "I submitted it", "Skip", tracker moves, Open & fill. They call the existing
-`/api/profile`, `/api/run` (pdf), `/api/status` (set-status.mjs) and the extension.
+Not exercised, because they write real data or spend model usage: Save in the wizard,
+"Make the next 3 resumes", Draft cover letter, I submitted it, Skip, board moves, and Open & fill
+(which opens the real employer form). They call the existing /api/profile, /api/run,
+/api/status (set-status.mjs) and the Chrome extension, which Career Reef already uses.
 
-Found in passing: Reef's Generate CV passes the tracker row number to the pdf worker, which
-expects a report number. They differ on 2 of 119 rows; X passes the report number.
+Found in passing: Career Reef's Generate CV button sends the tracker row number to the CV
+worker, which expects the report number. The two differ only for two skipped jobs
+(Cloudburst Consulting Group, Housing & Community Development Analyst; TelyRx, Business Analyst,
+Commercial & Ops), which the Reef does not show, so nothing is affected today. X sends the report number.
 
-Suggested merge: take X's match checklist, remote filter, queue lanes, ATS check, tracker board
-and wizard into main; keep Reef's editorial home as an optional overview.
+Change made during the comparison: X first counted a job as ready only when its cover letter
+existed too, which showed 1 ready job against the Reef's 8. X now uses the Reef's rule
+(tailored resume, plus the SOQ when the posting asks for one) and shows the missing cover letter as a dot.
+
+Suggested merge: bring X's match checklist and remote filter, the two-lane apply queue,
+the resume page with ATS check, the tracker board and the setup wizard into main. Keep the Reef
+home as the overview, and keep its "Verify first" tab and status panel.
