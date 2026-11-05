@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DEFAULT_FILTERS,
@@ -613,6 +613,15 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
       try { sessionStorage.removeItem(RESULTS_KEY); } catch { /* unavailable */ }
       return;
     }
+    const saved = snap;
+    // startTransition: this restore runs right after hydration, while a
+    // streamed page below may still be waiting to hydrate. An urgent context
+    // update there makes React client-render that page and orphan the streamed
+    // copy in a hidden <div id="S:0">, so the page exists twice in the DOM.
+    startTransition(() => restoreSnapshot(saved));
+  }, []);
+
+  function restoreSnapshot(snap: ResultSnapshot) {
     setModeState(snap.mode === "ai" ? "ai" : "scan");
     setEmployerOutcome(null);
     setOffers(snap.offers);
@@ -633,7 +642,7 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
     // Never rehydrate INTO a running phase — no live stream backs it.
     const RUNNING = new Set<Phase>(["casting", "scanning", "revealing", "hunting"]);
     setPhase(RUNNING.has(snap.phase) ? (snap.offers.length ? "results" : "idle") : snap.phase);
-  }, []);
+  }
 
   // Persist only SETTLED states (never mid-stream) so a reload restores a complete set.
   useEffect(() => {

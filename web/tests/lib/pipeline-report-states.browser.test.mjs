@@ -24,7 +24,8 @@ test("Unreadable and missing reports keep the app shell and a way back", { skip:
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const sidebar = () => page.getByRole("complementary").getByRole("navigation");
+  // The shell navigation lives in the top bar (banner) since the editorial redesign.
+  const sidebar = () => page.getByRole("banner").getByRole("navigation", { name: "Primary" });
   const main = () => page.getByRole("main");
   const back = () => main().getByRole("link", { name: /pipeline/i });
   const query = "tab=EVALUATED&min=3.5&sort=company&dir=1&q=Fixture";

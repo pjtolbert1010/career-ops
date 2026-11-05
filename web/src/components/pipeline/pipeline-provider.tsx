@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useState } from "react";
 import type { Application, InboxJob } from "@/lib/career-ops";
 
 // A thin client mirror of the pipeline so BOTH the pages and the assistant
@@ -32,11 +32,17 @@ export function PipelineProvider({ children }: { children: React.ReactNode }) {
     fetch("/api/pipeline")
       .then((r) => r.json())
       .then((d) => {
-        setInbox(Array.isArray(d.inbox) ? d.inbox : []);
-        setApplications(Array.isArray(d.applications) ? d.applications : []);
+        // startTransition: this update runs right after hydration, while a streamed
+        // page below may still be waiting to hydrate. An urgent context update
+        // there makes React client-render that page and orphan the streamed copy
+        // in a hidden <div id="S:0">, so the page exists twice in the DOM.
+        startTransition(() => {
+          setInbox(Array.isArray(d.inbox) ? d.inbox : []);
+          setApplications(Array.isArray(d.applications) ? d.applications : []);
+        });
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => startTransition(() => setLoading(false)));
   }, []);
 
   useEffect(() => {

@@ -1,0 +1,96 @@
+enabled: true
+daily_cap: 5
+min_score: 3.0
+
+titles:
+  allow:
+    # Analyst family (from your tracked roles)
+    - "Management Analyst"
+    - "Senior Management Analyst"
+    - "Staff Analyst"
+    - "Principal Budget Analyst"
+    - "Program & Management Analyst"
+    - "Health Program Analyst"
+    - "Medicare Operations Analyst"
+    # Staff services and program manager family
+    - "Staff Services Analyst"
+    - "Staff Services Manager"
+    - "Associate Governmental Program Analyst"
+    - "AGPA"
+    - "Health Program Specialist II"
+    - "Health Program Specialist III"
+    - "Health Program Manager"
+    - "Program Manager"
+    - "Services Program Manager"
+    - "Senior Program Manager"
+    - "Program Operations Manager"
+    # Operations and finance
+    - "Operations Manager"
+    - "Finance and Operations Manager"
+    - "Business Operations Manager"
+    - "Clinic Operations Manager"
+    - "Support Services Manager"
+    - "Administrative Services Manager"
+    # Contracts and grants
+    - "Contract Manager"
+    - "Contracts Manager"
+    - "Contracts Administrator"
+    - "Grant Manager"
+    - "Grants Administrator"
+    - "Subcontract Administrator"
+    - "Procurement Manager"
+    # Creative senior variants
+    - "Process Improvement Lead"
+    - "Workflow Improvement Manager"
+    - "Strategic Initiatives Manager"
+    - "Program Delivery Lead"
+    - "Business Operations Lead"
+    - "Compliance and Contracts Lead"
+    - "Operations Strategist"
+    - "Engagement Operations Manager"
+  deny:
+    - intern
+    - internship
+    - junior
+    - entry
+    - trainee
+    - apprentice
+    - student
+    - werkstudent
+    - praktikant
+    - fellow
+    - clerk
+    - receptionist
+    - technician
+    - "office specialist"
+    - coordinator
+    - assistant
+
+comp:
+  currency: USD
+  floor: 90000
+  target: 130000
+  unstated_pay: confirm_queue
+
+location:
+  remote: true
+  hybrid_commutable_from: ["Sacramento", "Woodland", "West Sacramento", "Davis", "Roseville", "Rancho Cordova", "Folsom", "Elk Grove", "Citrus Heights", "Carmichael", "Rocklin", "Auburn", "Galt", "Lincoln", "Vacaville", "Fairfield", "Dixon", "Winters", "Stockton", "Lodi", "Yuba City", "Marysville", "Chico", "Placerville", "South Lake Tahoe"]
+  reject_onsite: true
+  reject_relocation: true
+  reject_clearance: true
+  unstated_country: confirm_queue
+
+exclude_companies_file: data/blacklist.md
+
+never_say:
+  - invented_metrics
+  - authorship_claims
+  - sponsorship_or_work_authorization_answers
+
+submit:
+  enabled: true
+  unattended: true
+  allowed_ats: [greenhouse, ashby, lever, governmentjobs, workday, smartrecruiters, workable, bamboohr, rippling, recruitee, breezy, pinpoint, join, icims, paylocity, paycom, ultipro, taleo, successfactors, jobvite, dayforce, other]
+  block_linkedin_easy_apply: true
+  block_workday: false
+  stop_on: [captcha, login, account_creation, unanswerable_required_question]

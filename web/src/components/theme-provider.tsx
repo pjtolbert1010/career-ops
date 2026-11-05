@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { isTheme, storedTheme, THEME_COLORS, THEME_STORAGE_KEY } from "@/lib/theme.mjs";
 
 export type Theme = "light" | "dark";
@@ -41,7 +41,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initial = currentTheme();
-    setThemeState(initial);
+    // startTransition: this update runs right after hydration, while a streamed
+    // page below may still be waiting to hydrate. An urgent context update
+    // there makes React client-render that page and orphan the streamed copy
+    // in a hidden <div id="S:0">, so the page exists twice in the DOM.
+    startTransition(() => setThemeState(initial));
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onSystemTheme = () => {

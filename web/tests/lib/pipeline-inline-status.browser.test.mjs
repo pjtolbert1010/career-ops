@@ -204,7 +204,8 @@ test("inline Pipeline status browser flow (disposable data only)", { skip: liveS
     assert.equal(await row(11).getByRole("button", { name: /^Cancel editing/ }).evaluate((element) => element.getBoundingClientRect().height >= 44), true);
     await select(11).press("Escape");
     await tab("INBOX").click();
-    await page.waitForURL((value) => !value.searchParams.has("tab"));
+    // Queue is the default tab (ca686b16), so choosing the inbox names it in the URL.
+    await page.waitForURL((value) => value.searchParams.get("tab") === "INBOX");
     assert.equal(await page.getByRole("button", { name: /^Edit status/ }).count(), 0);
   });
   assert.deepEqual(errors, []);

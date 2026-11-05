@@ -34,7 +34,8 @@ test("inbox keys act on the cursor row and on checked rows", { skip: liveServerS
     }
   }
 
-  await page.goto(`${origin.origin}/pipeline`);
+  // The Pipeline opens on the Queue tab (ca686b16), so the inbox is ?tab=INBOX.
+  await page.goto(`${origin.origin}/pipeline?tab=INBOX`);
   await row("Fixture Beta").getByRole("checkbox").waitFor();
 
   // With no row under the cursor, x only places the cursor. Nothing is skipped.

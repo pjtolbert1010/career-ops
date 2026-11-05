@@ -46,8 +46,8 @@ test("visible labels are part of accessible names, and shell content sits in lan
   });
   const norm = (s) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
-  const launcher = page.locator("button", { hasText: /^co\s*Ask\b/ });
-  const pill = page.getByText("0.0.0-fixture · alpha");
+  // The Career Reef mark is an aria-hidden SVG (52a50d2f), so the visible label is "Ask".
+  const launcher = page.locator("button", { hasText: /^(co\s*)?Ask\b/ });
   for (const route of ["/", "/followups"]) {
     await page.goto(`${origin.origin}${route}`);
     await t.test(`${route}: the assistant launcher's name starts with its visible label`, async () => {
@@ -56,11 +56,7 @@ test("visible labels are part of accessible names, and shell content sits in lan
       const name = await nameOf(launcher);
       assert.ok(norm(name).startsWith(norm(text)), `launcher shows "${text}" but is named "${name}"`);
     });
-    await t.test(`${route}: the pre-release pill sits inside a landmark`, async () => {
-      await pill.waitFor();
-      const landmark = await pill.evaluate((el) => el.closest("aside, nav, main, header, footer, [role=region], [role=complementary], [role=navigation], [role=main], [role=banner], [role=contentinfo]")?.tagName ?? null);
-      assert.ok(landmark, "pre-release pill is outside every landmark");
-    });
+    // No pre-release pill check: this shell no longer mounts BetaBanner (8f63fde4).
   }
 
   const row = page.getByRole("row").filter({ hasText: "Fixture Beta" });

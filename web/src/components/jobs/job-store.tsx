@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { scoreTone } from "@/lib/format";
 import { resolveCliId } from "@/lib/saved-cli";
 import { createWorkerFeedback } from "@/lib/worker-feedback.mjs";
@@ -72,21 +72,35 @@ export function JobsProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const seq = useRef(0);
   const loaded = useRef(false);
+  const [restored, setRestored] = useState(false);
 
   // restore history
   useEffect(() => {
+    let restoredJobs: Job[] | null = null;
     try {
       const raw = localStorage.getItem(JOBS_KEY);
       const arr = raw ? JSON.parse(raw) : null;
       if (Array.isArray(arr)) {
         // anything left "running" from a previous session is stale → mark interrupted
-        setJobs(arr.map((j: Job) => (j.status === "running" ? { ...j, status: "error", steps: [...(j.steps || []), { kind: "status", label: "Interrupted (page reloaded)", ts: Date.now() }] } : j)));
+        restoredJobs = arr.map((j: Job) => (j.status === "running" ? { ...j, status: "error", steps: [...(j.steps || []), { kind: "status", label: "Interrupted (page reloaded)", ts: Date.now() }] } : j));
       }
     } catch {
       /* ignore */
     }
-    loaded.current = true;
+    // startTransition: this update runs right after hydration, while a streamed
+    // page below may still be waiting to hydrate. An urgent context update
+    // there makes React client-render that page and orphan the streamed copy
+    // in a hidden <div id="S:0">, so the page exists twice in the DOM.
+    startTransition(() => {
+      if (restoredJobs) setJobs(restoredJobs);
+      setRestored(true);
+    });
   }, []);
+  // Persisting starts only once the restored history has committed, so the
+  // empty first render never overwrites saved history.
+  useEffect(() => {
+    if (restored) loaded.current = true;
+  }, [restored]);
 
   // persist. Every streamed chunk replaces `jobs`, so writes go through the
   // persister: at once when nothing runs, at most once a second while a job

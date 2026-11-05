@@ -42,7 +42,8 @@ test("Inbox Undo remains retryable after failure", { skip: liveServerSkip("INBOX
     const response = await page.request.post(`${origin.origin}/api/inbox/skip`, { data: { url: `https://example.com/fixture-${company}`, done: false } });
     assert.equal(response.ok(), true);
   }
-  await page.goto(`${origin.origin}/pipeline`);
+  // The Pipeline opens on the Queue tab (ca686b16), so the inbox is ?tab=INBOX.
+  await page.goto(`${origin.origin}/pipeline?tab=INBOX`);
 
   let restores = 0;
   const gate = new Promise((resolve) => { release = resolve; });

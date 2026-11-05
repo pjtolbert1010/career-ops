@@ -36,11 +36,12 @@ test("careerOpsRoot derives the data root from the same checkout base", () => {
 });
 
 // A path that only exists in the code checkout, joined onto the data root.
-// modes/_profile.md is the one user-layer file under modes/, so it is allowed.
+// modes/_profile.md, _custom.md and _brief.md are the user-layer files under
+// modes/ (AGENTS.md Data Contract), so they are allowed.
 const SYSTEM_PATH_ON_DATA_ROOT = [
   /(?:careerOpsRoot\(\)|\broot)\s*,\s*"[^"]+\.mjs"/,
   /(?:careerOpsRoot\(\)|\broot)\s*,\s*"(?:templates|lib)"/,
-  /(?:careerOpsRoot\(\)|\broot)\s*,\s*"modes"\s*,\s*"(?!_profile\.md")/,
+  /(?:careerOpsRoot\(\)|\broot)\s*,\s*"modes"\s*,\s*"(?!_(?:profile|custom|brief)\.md")/,
   /(?:careerOpsRoot\(\)|\broot)\s*,\s*"config"\s*,\s*"profile\.example\.yml"/,
 ];
 

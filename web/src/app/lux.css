@@ -152,14 +152,29 @@ a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
 /* Drawers (menu / job detail) */
 .lux-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(14, 26, 36, .45); opacity: 0; pointer-events: none; transition: opacity .5s var(--lux-ease); }
 .lux-scrim.open { opacity: 1; pointer-events: auto; }
-.lux-drawer { position: fixed; top: 0; bottom: 0; z-index: 61; width: min(36rem, 100vw); overflow-y: auto; overscroll-behavior: contain; background: var(--lux-paper); color: var(--lux-ink); transition: transform .6s var(--lux-ease), visibility 0s linear .6s; visibility: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+.lux-drawer { position: fixed; top: 0; bottom: 0; z-index: 61; width: min(36rem, 100%); overflow-y: auto; overscroll-behavior: contain; background: var(--lux-paper); color: var(--lux-ink); transition: transform .6s var(--lux-ease), visibility 0s linear .6s; visibility: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
 .lux-drawer-right { right: 0; transform: translateX(105%); }
-.lux-drawer-left { left: 0; transform: translateX(-105%); width: min(26rem, 100vw); }
+.lux-drawer-left { left: 0; transform: translateX(-105%); width: min(26rem, 100%); }
+.lux-drawer-menu { width: min(26rem, 100%); }
+/* Desktop: a closed menu has no box at all, as the old phone-only drawer had.
+   allow-discrete keeps it displayed while it slides out; @starting-style
+   gives the slide-in a start frame after display:none. */
+@media (min-width: 48rem) {
+  .lux-drawer-menu:not(.open) { display: none; }
+  .lux-drawer-menu { transition: transform .6s var(--lux-ease), visibility 0s linear .6s, display .6s allow-discrete; }
+}
+@starting-style {
+  .lux-drawer-menu.open { transform: translateX(105%); }
+}
+
+/* Worker tray (desktop): the live workers, floating while any exist. */
+.lux-tray { max-height: min(60vh, 28rem); padding: .25rem 1rem 1rem; background: var(--lux-paper); color: var(--lux-ink); border: 1px solid var(--lux-hair); box-shadow: 0 24px 48px -32px rgba(14, 26, 36, .45); }
+.lux-tray > div:first-child { margin-top: 0; border-top: 0; }
 .lux-drawer.open { transform: none; visibility: visible; transition: transform .6s var(--lux-ease); }
 
 @media (prefers-reduced-motion: reduce) {
   .lux-js .lux-reveal { opacity: 1; transform: none; transition: none; }
-  .lux-zoom > *, .lux-link > .lux-u::after, .lux-drawer, .lux-scrim, .lux-card-actions, .lux-arrow, .lux-rule { transition: none; }
+  .lux-zoom > *, .lux-link > .lux-u::after, .lux-drawer, .lux-drawer.open, .lux-scrim, .lux-card-actions, .lux-arrow, .lux-rule { transition: none; }
   .lux-status-dot[data-tone="run"] { animation: none; }
   .lux-hero video { display: none; }
 }

@@ -51,7 +51,8 @@ test("evaluation choices survive navigation and reach pasted-URL and shortlist w
   assert.equal(await options.getByRole("checkbox", { name: /Interview preparation/ }).isChecked(), true);
   assert.equal(await options.getByRole("checkbox", { checked: true }).count(), 1);
 
-  await page.goto(`${url}/pipeline`);
+  // The Pipeline opens on the Queue tab (ca686b16), so the inbox is ?tab=INBOX.
+  await page.goto(`${url}/pipeline?tab=INBOX`);
   await page.locator("li:visible").filter({ hasText: "Fixture Alpha" }).getByRole("button", { name: /Save/ }).click();
   await page.getByRole("button", { name: /^Score 1 ·/ }).click();
   assert.equal(await options.getByRole("checkbox", { name: /Interview preparation/ }).isChecked(), true);

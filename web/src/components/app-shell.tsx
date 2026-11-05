@@ -11,6 +11,7 @@ import { ExploreProvider } from "@/components/explore/explore-provider";
 import { FirstScoreView } from "@/components/explore/first-score-view";
 import { LuxNav } from "@/components/lux/lux-nav";
 import { LuxFooter } from "@/components/lux/lux-footer";
+import { WorkerTray } from "@/components/lux/worker-tray";
 
 export function AppShell({ children, followupsEnabled }: { children: React.ReactNode; followupsEnabled: boolean }) {
   const pathname = usePathname();
@@ -26,6 +27,7 @@ export function AppShell({ children, followupsEnabled }: { children: React.React
         Skip to content
       </a>
       <LuxNav followupsEnabled={followupsEnabled} />
+      <WorkerTray />
       <div className="lux-page flex min-h-screen flex-col">
         {/* The /reef overview starts under a transparent nav over its hero; every
             other page clears the fixed nav. */}

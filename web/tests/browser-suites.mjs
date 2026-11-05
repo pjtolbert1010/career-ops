@@ -87,7 +87,7 @@ function freePort() {
 }
 
 function makeRoot(fixture) {
-  const result = spawnSync(process.execPath, [path.join(FIXTURES, `${fixture}.mjs`)], { encoding: "utf8", env: process.env });
+  const result = spawnSync(process.execPath, [path.join(FIXTURES, `${fixture}.mjs`)], { encoding: "utf8", env: process.env, windowsHide: true });
   if (result.status !== 0) throw new Error(`fixture ${fixture} failed: ${result.stderr || result.error?.message}`);
   return result.stdout.trim();
 }
@@ -98,7 +98,9 @@ function startServer(root, port, log) {
   const env = { ...process.env, CAREER_OPS_ROOT: root, NEXT_TELEMETRY_DISABLED: "1" };
   for (const name of ["CAREER_OPS_DATA_DIR", "CAREER_OPS_TRACKER", "CAREER_OPS_WEB_ALLOWED_HOSTS", ...SUITE_VARS]) delete env[name];
   const child = spawn(process.execPath, ["server.mjs", "start", "-p", String(port)], {
-    cwd: WEB, env, detached: true, stdio: ["ignore", log, log],
+    // windowsHide: a detached child gets its own console on Windows; without
+    // this every suite pops a terminal window over the desktop.
+    cwd: WEB, env, detached: true, windowsHide: true, stdio: ["ignore", log, log],
   });
   const exited = new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
   return { child, exited };
@@ -121,6 +123,14 @@ async function waitReady(url, server) {
 }
 
 async function stop(server) {
+  // Windows has no process groups: process.kill(-pid) throws, so the server
+  // and its next child would leak and their pipes keep this runner alive.
+  // taskkill /T ends the whole tree instead.
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/pid", String(server.child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+    await server.exited;
+    return;
+  }
   try { process.kill(-server.child.pid, "SIGTERM"); } catch { return; }
   const timer = setTimeout(() => { try { process.kill(-server.child.pid, "SIGKILL"); } catch { /* gone */ } }, 10_000);
   await server.exited;
@@ -131,7 +141,7 @@ async function stop(server) {
 function runSuite(file, env) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, ["--experimental-strip-types", "--test", "--test-reporter=spec", file], {
-      cwd: WEB, env, stdio: ["ignore", "pipe", "pipe"],
+      cwd: WEB, env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
     for (const stream of [child.stdout, child.stderr]) {
