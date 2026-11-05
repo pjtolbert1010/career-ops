@@ -103,7 +103,10 @@ function field(fields: { label: string; value: string }[], label: string): strin
 
 function yamlScalar(report: string, key: string): string {
   const m = report.match(new RegExp(`^${key}:\\s*"?([^"\\n]*)"?\\s*$`, "m"));
-  return m?.[1]?.trim() ?? "";
+  const v = m?.[1]?.trim() ?? "";
+  // A YAML null (`null`, `~`, optionally with a trailing comment) is no value,
+  // not the text "null" shown on a card.
+  return /^(null|~)(\s+#.*)?$/i.test(v) ? "" : v;
 }
 
 /** Top of an advertised range as annual dollars, or null when unreadable. */

@@ -60,6 +60,23 @@ or stores a password. It then:
 Sign in yourself, then press **I'm signed in** in either place. The job picks
 up where it stopped. The stop survives page loads until you press it.
 
+**Before you press Fill (v0.5.0).** On a tab Career Reef opened, the panel
+also watches the page. When pressing the site's own Apply leads to a sign-in
+page or form (Workday's Apply -> Apply Manually, governmentjobs.com's
+`/app/signin`), single sign-on, captcha or paywall, you get the same banner,
+chime and notification right away, and the panel turns orange with an
+**I'm signed in** button. Then press **Fill this application** once the form
+shows.
+
+**Sites not on the list (v0.5.0).** An employer page that embeds its ATS
+(for example `datavant.com/...?gh_jid=`) is outside the extension's job-site
+list, so it gets no panel. A notification says so: click the career-ops
+toolbar button on that tab and choose Allow, once per site.
+
+**Submit outline (v0.5.0).** Only the real submit control is outlined. A bare
+"Apply" jump button (Greenhouse job pages) is outlined only when there is no
+other submit control.
+
 ### Session boards (Remote Jobs Finder)
 
 Some boards show listings only to signed-in members. career-ops never logs in
@@ -100,5 +117,5 @@ Watch panel.
 
 Open `chrome://extensions`, find **career-ops Apply**, and click its reload
 arrow. Then reload any job tabs that were already open. The version shown
-there should read 0.4.0. The first click on a newly listed site may ask once
+there should read 0.5.0. The first click on a newly listed site may ask once
 for access.

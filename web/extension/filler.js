@@ -270,9 +270,16 @@
   const SUBMIT_TEXT = /^(submit( my)?( application)?|send( my)? application|complete( my)? application|finish( application)?|apply now|apply)$/i;
   function highlightSubmit() {
     let n = 0;
-    document.querySelectorAll("button, input[type=submit], [role=button]").forEach((el) => {
-      const text = (el.innerText || el.value || el.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
-      if (!text || text.length > 40 || !SUBMIT_TEXT.test(text) || /linkedin|indeed|google|seek/i.test(text) || !visible(el)) return;
+    const label = (el) => (el.innerText || el.value || el.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+    const candidates = Array.from(document.querySelectorAll("button, input[type=submit], [role=button]")).filter((el) => {
+      const text = label(el);
+      return text && text.length <= 40 && SUBMIT_TEXT.test(text) && !/linkedin|indeed|google|seek/i.test(text) && visible(el);
+    });
+    // A bare "Apply" / "Apply now" is often the job page's jump-to-form
+    // button (Greenhouse). When a real submit control is on the page, only
+    // that one is outlined.
+    const strong = candidates.filter((el) => !/^apply( now)?$/i.test(label(el)));
+    (strong.length ? strong : candidates).forEach((el) => {
       el.style.setProperty("outline", "3px dashed #dc2626", "important");
       el.style.setProperty("outline-offset", "3px", "important");
       el.setAttribute("title", "career-ops: review everything, then press this yourself. career-ops never presses it.");

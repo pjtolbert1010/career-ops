@@ -55,7 +55,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       };
       await saveJobs(all);
       await chrome.storage.local.set({ lastServer: all[tab.id].server, lastCliId: all[tab.id].cliId });
-      return sendResponse({ ok: true });
+      // A site outside the manifest's job-site list (an employer page that
+      // embeds its ATS, e.g. ?gh_jid=) gets no Fill panel and no sign-in
+      // watcher until the user allows it: say so instead of staying silent.
+      const origin = new URL(msg.url).origin;
+      const allowed = await chrome.permissions.contains({ origins: [`${origin}/*`] }).catch(() => true);
+      if (!allowed) {
+        notify(`allow-${tab.id}`, `Allow career-ops on ${hostOf(msg.url)}`, "This site isn't on career-ops' job-site list yet. Click the career-ops toolbar button on that tab and choose Allow; then it can fill the application. It never submits.", { tabId: tab.id });
+      }
+      return sendResponse({ ok: true, allowed });
     }
     if (msg.type === "config") {
       // bridge.js on a dashboard page: remember it and its CLI pick.
