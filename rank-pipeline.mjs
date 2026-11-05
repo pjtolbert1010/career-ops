@@ -106,12 +106,19 @@ export const CLI_CANDIDATES = [
 const USAGE = `
   rank-pipeline.mjs — opt-in LLM relevance re-ranker (annotates, never filters)
 
-  node rank-pipeline.mjs [--limit N] [--cli <name>] [--model <name>] [--dry-run]
+  node rank-pipeline.mjs [--limit N] [--cli <name>] [--model <name>] [--dry-run] [--fallback-only]
 
     --limit N     max entries to rank this run (default ${DEFAULT_LIMIT}, ceiling ${LIMIT_CEILING})
     --cli <name>  force a CLI instead of $CAREER_OPS_CLI or auto-detection
     --model <n>   passed through to the CLI when it accepts one
     --dry-run     print the annotations, write nothing
+    --fallback-only  skip the CLI; score every selected row with the
+                  deterministic keyword + salary fallback
+
+    When no CLI is found, or a CLI call fails (out of quota, timeout, bad
+    JSON), the affected rows get the keyword + salary fallback score instead
+    of staying unranked. Fallback reasons start with "fallback:" and never
+    exceed 4.2, so an AI evaluation still decides the top of the queue.
     --self-test   run the in-memory suite (no subprocess, no network)
 
     CAREER_OPS_RANK_TIMEOUT_MS  per-call timeout (default ${DEFAULT_TIMEOUT_MS})
@@ -121,11 +128,67 @@ const KNOWN_FLAGS = [
   '--cli',
   '--model',
   '--dry-run',
+  '--fallback-only',
   '--self-test',
   '--help',
   '-h',
 ];
 const VALUE_FLAGS = ['--limit', '--cli', '--model'];
+// ── Deterministic fallback score ───────────────────────────────────────────
+// Used when the agent CLI is missing or a call fails, so ranking never blocks.
+// Reads only the pipeline row itself (title, compensation cell, note), never
+// the network. Weights mirror the profile's targeting: contracts / grants /
+// procurement / compliance / program and operations analysis first, a $90K
+// floor and a $130K target. Capped at 4.2 so a fallback score alone never
+// outranks a real 4.5+ evaluation.
+const FALLBACK_CAP = 4.2;
+const FALLBACK_FLOOR_USD = 90000;
+const FALLBACK_TARGET_USD = 130000;
+
+/** Annual USD figures written in a row ("$95,000 - $120,000", "$95K-$120K"). */
+export function salaryFiguresFromRow(raw) {
+  const text = String(raw ?? '');
+  const out = [];
+  for (const m of text.matchAll(/\$\s?(\d{2,3}(?:,\d{3})+|\d{2,3}(?:\.\d+)?\s?[kK])(?![\d,])/g)) {
+    const v = m[1].replace(/,/g, '').trim();
+    const n = /k$/i.test(v) ? parseFloat(v) * 1000 : Number(v);
+    if (Number.isFinite(n) && n >= 15000 && n < 1_000_000) out.push(n);
+  }
+  return out;
+}
+
+/**
+ * Keyword + salary score for one pending row. Returns { score, reason }.
+ * @param {{raw: string, title?: string}} entry
+ */
+export function fallbackScore(entry) {
+  const raw = String(entry?.raw ?? '');
+  const title = String(entry?.title ?? '').toLowerCase();
+  let score = 2.5;
+  const why = [];
+  if (/\b(contracts?|grants?|procurement|purchasing|compliance|acquisitions?)\b/.test(title)) { score += 1.0; why.push('core function'); }
+  else if (/\b(program|operations|business) (analyst|manager|specialist|coordinator|administrator|officer)\b|\bstaff services\b/.test(title)) { score += 0.8; why.push('program/ops role'); }
+  else if (/\b(analyst|coordinator|specialist|administrator|project manager)\b/.test(title)) { score += 0.4; why.push('adjacent title'); }
+  if (/\b(junior|intern|entry[- ]level)\b/.test(title)) { score -= 1.0; why.push('junior'); }
+  if (/\b(director|head of|vp|vice president|principal|staff)\b/.test(title)) { score -= 0.4; why.push('stretch level'); }
+  if (/\b(engineer|developer|scientist|nurse|attorney|threat|sales)\b/.test(title)) { score -= 1.0; why.push('off-target domain'); }
+  if (/\(contractor|independent contractor|\btemp\b/.test(title)) { score -= 0.6; why.push('contractor/temp'); }
+  const figures = salaryFiguresFromRow(raw);
+  if (figures.length) {
+    const hi = Math.max(...figures);
+    const lo = Math.min(...figures);
+    if (hi < FALLBACK_FLOOR_USD) { score -= 1.2; why.push('below $90K floor'); }
+    else if (hi >= FALLBACK_TARGET_USD) { score += 0.6; why.push('reaches $130K target'); }
+    else if (lo >= FALLBACK_FLOOR_USD) { score += 0.3; why.push('above floor'); }
+  } else {
+    score -= 0.4;
+    why.push('salary unknown');
+  }
+  if (/\b(remote|anywhere|united states|usa)\b/i.test(raw)) score += 0.1;
+  const clamped = Math.max(0, Math.min(FALLBACK_CAP, Math.round(score * 10) / 10));
+  return { score: clamped, reason: `fallback: ${why.join(', ') || 'no strong signal'} (AI ranker unavailable)` };
+}
+
 /**
  * Clamp to [0,5] at one decimal, and sanitize the reason so a model-generated
  * string can never break the row's pipe-delimited grammar or forge a new row.
@@ -389,11 +452,12 @@ async function main(args) {
   const cli = forced
     ? CLI_CANDIDATES.find(c => c.bin === forced) ?? { bin: forced, args: p => ['-p', p] }
     : detectCli(active ? [active, ...CLI_CANDIDATES] : CLI_CANDIDATES);
-  if (!cli) {
-    console.error('No supported agent CLI found (tried: %s).', CLI_CANDIDATES.map(c => c.bin).join(', '));
-    console.error('Install one, or pass --cli <name>. See the Headless / Batch Mode table in AGENTS.md.');
-    return 1;
+  const fallbackOnly = hasFlag(args, '--fallback-only');
+  if (!cli && !fallbackOnly) {
+    console.error('No supported agent CLI found (tried: %s) — using the keyword + salary fallback score.', CLI_CANDIDATES.map(c => c.bin).join(', '));
   }
+  const useCli = Boolean(cli) && !fallbackOnly;
+  const cliBin = useCli ? cli.bin : 'fallback';
 
   const original = readFileSync(PIPELINE_PATH, 'utf-8');
   const pending = parsePendingEntries(original);
@@ -417,28 +481,42 @@ async function main(args) {
   let attemptedCalls = 0;
   let skippedBatches = 0;
   let failedCalls = 0;
+  let fallbackRows = 0;
   const unranked = [];
 
   for (let i = 0; i < selected.length; i += BATCH_SIZE) {
     const batch = selected.slice(i, i + BATCH_SIZE);
     const label = `batch ${i / BATCH_SIZE + 1}`;
+    const scoreWithFallback = (why) => {
+      for (const entry of batch) {
+        const { score, reason } = fallbackScore(entry);
+        const segment = formatRankSegment(score, reason);
+        if (segment) annotations.push({ raw: entry.raw, index: entry.index, segment });
+        else unranked.push({ entry, why });
+      }
+      fallbackRows += batch.length;
+    };
+    if (!useCli) {
+      scoreWithFallback(`${label}: fallback`);
+      continue;
+    }
     let response;
     attemptedCalls += 1;
     try {
       response = callCli(cli, buildPrompt(batch, cvExcerpt), model, timeout);
     } catch (err) {
-      console.error(`  ${label}: CLI call failed (${describeCliFailure(err, cli.bin, timeout)}), entries left un-annotated`);
+      console.error(`  ${label}: CLI call failed (${describeCliFailure(err, cli.bin, timeout)}) — keyword + salary fallback used`);
       skippedBatches += 1;
       failedCalls += 1;
-      unranked.push(...batch.map(entry => ({ entry, why: `${label}: call failed` })));
+      scoreWithFallback(`${label}: call failed`);
       continue;
     }
     const results = parseBatchResponse(response);
     if (!results.length) {
-      console.error(`  ${label}: no usable JSON in response — entries left un-annotated`);
+      console.error(`  ${label}: no usable JSON in response — keyword + salary fallback used`);
       skippedBatches += 1;
       failedCalls += 1;
-      unranked.push(...batch.map(entry => ({ entry, why: `${label}: no usable JSON` })));
+      scoreWithFallback(`${label}: no usable JSON`);
       continue;
     }
     const seen = new Set();
@@ -462,8 +540,11 @@ async function main(args) {
     console.error(`\n  ${unranked.length} of ${selected.length} selected entr(ies) left unranked. Re-run to retry them:`);
     for (const { entry, why } of unranked) console.error(`    ${entry.url || entry.raw} (${why})`);
   }
-  const allFailed = failedCalls === attemptedCalls;
-  const reportAllFailed = () => console.error(`\n  Every call to ${cli.bin} failed. Check that \`${cli.bin}\` works on its own, or pick another CLI with --cli <name>.`);
+  // Every attempted CLI call failed: still exit 1, so a schedule or the web UI
+  // sees that the AI ranker is broken. The fallback scores are written anyway,
+  // so ranking itself never blocks.
+  const allFailed = attemptedCalls > 0 && failedCalls === attemptedCalls;
+  const reportAllFailed = () => console.error(`\n  Every call to ${cliBin} failed. Check that \`${cliBin}\` works on its own, or pick another CLI with --cli <name>.`);
 
   if (dryRun) {
     for (const { raw, segment } of annotations) console.log(`${raw} | ${segment}`);
@@ -488,13 +569,14 @@ async function main(args) {
     });
   }
 
-  console.log(`\n  Ranked ${written} entr(ies) of ${pending.length} pending in ${attemptedCalls} CLI call(s) via ${cli.bin}.`);
-  if (skippedBatches) console.log(`  ${skippedBatches} batch(es) skipped — those rows are un-annotated, not dropped.`);
+  console.log(`\n  Ranked ${written} entr(ies) of ${pending.length} pending in ${attemptedCalls} CLI call(s) via ${cliBin}.`);
+  if (fallbackRows) console.log(`  ${fallbackRows} row(s) scored by the keyword + salary fallback (reason starts "fallback:").`);
+  if (skippedBatches) console.log(`  ${skippedBatches} CLI batch(es) failed — their rows got the fallback score.`);
   if (pending.length > selected.length) {
     console.log(`  ${pending.length - selected.length} pending entr(ies) not ranked this run (--limit ${selectBatch(pending, limit).length}). Re-run to continue.`);
   }
   console.log(`  Elapsed: ${elapsed}s`);
-  console.log(`  Cost: not reported by \`${cli.bin}\` in headless mode — check your CLI's own usage view.`);
+  if (useCli) console.log(`  Cost: not reported by \`${cliBin}\` in headless mode — check your CLI's own usage view.`);
   if (allFailed) {
     reportAllFailed();
     return 1;

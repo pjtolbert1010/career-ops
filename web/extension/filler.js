@@ -2,7 +2,9 @@
 // career-ops on (toolbar button), until they turn it off again.
 //
 // Presses the posting's own Apply button when the page shows no form yet,
-// waits out sign-in pages, then reads the application form, asks career-ops
+// STOPS on sign-in, SSO, captcha and paywall pages (raises a "Needs sign-in"
+// alert on Reef Watch plus a desktop notification, and waits for the user's
+// "I'm signed in"; it never types a password), then reads the application form, asks career-ops
 // for drafted answers, and fills the empty fields. It never clicks Submit or
 // Next, never presses Apply on a page that has a form, and never overwrites a
 // value already on the page. Answers
@@ -21,6 +23,8 @@
   let batch = 0;
   let filledAny = false;
   let timer = null;
+  let pausedForSignin = false;
+  let signinPoll = null;
 
   // ---- which documents to attach. One switch each for the tailored CV, the
   // Statement of Qualifications (CalCareers) and the cover letter, saved in
@@ -44,9 +48,9 @@
 
   // ---- status badge (top frame only; other frames relay through background)
   let badgeText = null;
-  function badge(text, kind = "info", retry = false) {
+  function badge(text, kind = "info", retry = false, signin = false) {
     if (!TOP) {
-      chrome.runtime.sendMessage({ type: "status", text, kind, retry }).catch(() => {});
+      chrome.runtime.sendMessage({ type: "status", text, kind, retry, signin }).catch(() => {});
       return;
     }
     let host = document.getElementById("career-ops-badge");
@@ -63,12 +67,13 @@
         .x{position:absolute;top:6px;right:8px;background:none;border:0;color:#fff;font-size:15px;cursor:pointer}
         .d{margin-top:8px;font-size:12px;opacity:.95}.d label{margin-right:6px;cursor:pointer;white-space:nowrap}.d input{vertical-align:-2px;margin:0 3px 0 0}
         .r{margin-top:8px;padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;font:inherit;cursor:pointer}
-      </style><div class="b"><div class="t">career-ops</div><div class="m"></div><button class="r" hidden>Try blank fields again</button>
+      </style><div class="b"><div class="t">career-ops</div><div class="m"></div><button class="r g" hidden>I'm signed in</button><button class="r" hidden>Try blank fields again</button>
         <button class="r s" hidden>Save my answers</button> <button class="r o">Open answer bank</button>
         <div class="d">Attach: <label><input type="checkbox" data-k="cv"> CV</label> <label><input type="checkbox" data-k="soq"> SOQ</label> <label><input type="checkbox" data-k="cover"> Cover letter</label></div>
         <button class="x" title="Hide">×</button></div>`;
       root.querySelector(".x").onclick = () => host.remove();
-      root.querySelector(".r").onclick = () => retryBlank();
+      root.querySelector(".g").onclick = () => chrome.runtime.sendMessage({ type: "signin-done" }).catch(() => {});
+      root.querySelector(".r:not(.g)").onclick = () => retryBlank();
       root.querySelector(".s").onclick = () => {
         chrome.runtime.sendMessage({ type: "learn-all" }).catch(() => {});
         learn(false);
@@ -86,7 +91,8 @@
     const box = host.shadowRoot.querySelector(".b");
     box.className = `b ${kind}`;
     host.shadowRoot.querySelector(".m").textContent = text;
-    host.shadowRoot.querySelector(".r").hidden = !retry;
+    host.shadowRoot.querySelector(".r:not(.g)").hidden = !retry;
+    host.shadowRoot.querySelector(".g").hidden = !signin;
     if (filledAny || kind !== "info") host.shadowRoot.querySelector(".s").hidden = false;
     badgeText = text;
   }
@@ -94,14 +100,16 @@
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === "status-relay") {
         if (msg.kind === "ok" || msg.kind === "err" || msg.kind === "warn") filledAny = true;
-        badge(msg.text, msg.kind, msg.retry);
+        badge(msg.text, msg.kind, msg.retry, msg.signin);
       }
       if (msg.type === "retry-relay") retryBlank(true);
+      if (msg.type === "signin-resume") resumeAfterSignin();
     });
   } else {
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === "retry-relay") retryBlank(true);
       if (msg.type === "learn-relay") learn(false);
+      if (msg.type === "signin-resume") resumeAfterSignin();
     });
   }
 
@@ -193,6 +201,84 @@
     const u = location;
     if (LOGIN_PATH.test(`${u.pathname}${u.search}${u.hash}`) || /^(login|auth|sso|accounts?)\./i.test(u.hostname)) return true;
     return Array.from(document.querySelectorAll("input[type=password]")).some((p) => p.offsetParent !== null);
+  }
+
+  // ---- blocked pages: sign-in, SSO, captcha, paywall. Any of these stops the
+  // job until the user says they are signed in. career-ops never types or
+  // stores a password; it only reports which site needs them.
+  const SSO_URL = /accounts\.google\.com|login\.microsoftonline\.com|\.okta\.com|\.auth0\.com|\/sso\/|\/saml/i;
+  function visibleBox(el, minH = 40) {
+    const r = el.getBoundingClientRect();
+    return r.width > 40 && r.height >= minH && getComputedStyle(el).visibility !== "hidden";
+  }
+  function captchaShowing() {
+    if (/^(just a moment|attention required|verify you are human|security check)/i.test(document.title.trim())) return true;
+    // A visible challenge widget, not the invisible reCAPTCHA many ATS forms
+    // carry (size=invisible; it never asks the user anything).
+    const frames = document.querySelectorAll('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="challenges.cloudflare.com"], iframe[title*="captcha" i]');
+    for (const f of frames) {
+      if (/size=invisible/i.test(f.src)) continue;
+      if (visibleBox(f, 60)) return true;
+    }
+    return Array.from(document.querySelectorAll(".cf-turnstile, #challenge-form")).some((e) => visibleBox(e, 20));
+  }
+  function paywallShowing() {
+    const text = (document.body && document.body.innerText ? document.body.innerText : "").slice(0, 6000);
+    return /\b(members?[- ]only|unlock (all )?premium|upgrade to (see|view|apply|unlock)|subscribe to (see|view|apply|unlock)|this job is for (premium|paid) members|hidden jobs)\b/i.test(text);
+  }
+  function detectBlock(fields) {
+    if (SSO_URL.test(location.href)) return { kind: "sso", reason: "a single sign-on page" };
+    if (onLoginPage()) return { kind: "login", reason: "a sign-in page" };
+    if (captchaShowing()) return { kind: "captcha", reason: "a captcha / human check" };
+    if (!looksLikeApplication(fields) && paywallShowing()) return { kind: "paywall", reason: "a paywall or members-only page" };
+    return null;
+  }
+  function showSigninPause(reason) {
+    badge(
+      `Stopped: ${reason} on ${location.hostname}. Sign in yourself (career-ops never types passwords), then press I'm signed in here or on Career Reef.`,
+      "warn",
+      false,
+      true,
+    );
+  }
+  function pauseForSignin(block) {
+    if (pausedForSignin) return;
+    pausedForSignin = true;
+    chrome.runtime.sendMessage({ type: "needs-signin", kind: block.kind, reason: `career-ops hit ${block.reason}.`, url: location.href }).catch(() => {});
+    showSigninPause(block.reason);
+    watchSignin();
+  }
+  // "I'm signed in" can be pressed on Career Reef too: check now and then.
+  function watchSignin() {
+    clearInterval(signinPoll);
+    signinPoll = setInterval(() => {
+      chrome.runtime.sendMessage({ type: "signin-status" }, (r) => {
+        if (chrome.runtime.lastError) return;
+        if (r && r.paused === false) resumeAfterSignin();
+      });
+    }, 5000);
+  }
+  function resumeAfterSignin() {
+    clearInterval(signinPoll);
+    if (!pausedForSignin) return;
+    pausedForSignin = false;
+    if (TOP) badge("Thanks. Picking up where it stopped…");
+    schedule();
+  }
+
+  // ---- Submit: outlined, never clicked.
+  const SUBMIT_TEXT = /^(submit( my)?( application)?|send( my)? application|complete( my)? application|finish( application)?|apply now|apply)$/i;
+  function highlightSubmit() {
+    let n = 0;
+    document.querySelectorAll("button, input[type=submit], [role=button]").forEach((el) => {
+      const text = (el.innerText || el.value || el.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+      if (!text || text.length > 40 || !SUBMIT_TEXT.test(text) || /linkedin|indeed|google|seek/i.test(text) || !visible(el)) return;
+      el.style.setProperty("outline", "3px dashed #dc2626", "important");
+      el.style.setProperty("outline-offset", "3px", "important");
+      el.setAttribute("title", "career-ops: review everything, then press this yourself. career-ops never presses it.");
+      n += 1;
+    });
+    return n;
   }
 
   // ---- form extraction (ported from web/src/lib/apply/extract.ts)
@@ -569,12 +655,13 @@
   }
 
   async function scan() {
-    if (busy || stopped) return;
-    if (onLoginPage()) {
-      if (TOP && !filledAny) badge("Sign in here. Filling starts on its own once the application form shows.");
+    if (busy || stopped || pausedForSignin) return;
+    const fields = extract();
+    const block = detectBlock(fields);
+    if (block) {
+      pauseForSignin(block);
       return;
     }
-    const fields = extract();
     const todo = fields.filter((f) => f.empty !== false);
     if (!looksLikeApplication(fields) || todo.length === 0) {
       fields.forEach((f) => (f.group || [f.el]).forEach((e) => e && e.removeAttribute("data-co-field")));
@@ -677,7 +764,10 @@
     const docNote = missingDocs.length
       ? ` No ${missingDocs.map((k) => DOC_NAMES[k]).join(" or ")} saved for this job yet${missingDocs.includes("soq") ? ": ask Claude in Chrome to use career-reef-soq" : missingDocs.includes("cover") ? ": ask Claude in Chrome to use career-reef-cover-letter" : ""}, then click Try blank fields again.`
       : "";
-    badge(`Filled ${filled} of ${todo.length - notNeeded - optional} fields.${extra}${skipped}${left}${docNote} Review everything, then submit it yourself.`, confirm ? "warn" : "ok", filled + notNeeded + optional < todo.length);
+    const submits = highlightSubmit();
+    const submitNote = submits ? " Submit is outlined in red: press it yourself when it all looks right." : "";
+    badge(`Filled ${filled} of ${todo.length - notNeeded - optional} fields.${extra}${skipped}${left}${docNote} Review everything, then submit it yourself.${submitNote}`, confirm ? "warn" : "ok", filled + notNeeded + optional < todo.length);
+    if (submits) chrome.runtime.sendMessage({ type: "ready-for-submit", count: submits }).catch(() => {});
     busy = false;
   }
 
@@ -692,6 +782,12 @@
     chrome.runtime.sendMessage({ type: "job" }, (job) => {
       if (chrome.runtime.lastError || !job) return;
       stopped = false;
+      // A sign-in stop survives page loads: stay stopped until "I'm signed in".
+      if (job.signinPaused) {
+        pausedForSignin = true;
+        if (TOP) showSigninPause("a sign-in step");
+        watchSignin();
+      }
       if (TOP && !filledAny) {
         badge(
           job.n
@@ -719,6 +815,7 @@
     stopped = true;
     clearTimeout(timer);
     clearInterval(poll);
+    clearInterval(signinPoll);
     if (observer) observer.disconnect();
     observer = null;
     if (TOP) document.getElementById("career-ops-badge")?.remove();

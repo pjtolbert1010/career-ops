@@ -1,6 +1,6 @@
 ---
 name: career-reef-cover-letter
-description: Write, save and attach the user's tailored cover letter for the job application open in Chrome, using Career Reef (their local job-search dashboard) for their CV facts and to save the PDF. For every job site except CalCareers, where the career-reef-soq skill handles the Statement of Qualifications (unless that CalCareers posting asks for a cover letter). Use when the user says "write my cover letter", "tailored cover letter", "attach my cover letter", or names this skill on a job posting or application. Never submits the application.
+description: Write, save and attach the user's tailored cover letter for the job application open in Chrome, using Career Reef (their local job-search dashboard) for their CV facts and to save the PDF. For every job site except CalCareers, where the career-reef-soq skill handles the Statement of Qualifications (unless that CalCareers posting asks for a cover letter). Use when the user says "write my cover letter", "tailored cover letter", "attach my cover letter", or names this skill on a job posting or application. Works on remote boards (Remote OK, Remotive, We Work Remotely, Remote.co) and the ATS they link to (Greenhouse, Lever, Ashby, Workable, BambooHR, Workday). Never submits the application.
 ---
 
 # Career Reef: tailored cover letter
@@ -44,6 +44,56 @@ back empty. Do not return URLs, cookies or link `href`s from that tab: the
 browser tool blocks any result that carries query-string or cookie data
 (`[BLOCKED: Cookie/query string data]`). Read text only. If `get_page_text`
 fails on the job tab, use the chunked `innerText` read instead.
+
+## Remote boards and the ATS they link to
+
+Career Reef now also scans remote-only boards. Their postings reach Career Reef
+with the **board's** URL, and the board's Apply button usually sends the user on
+to the employer's own ATS. Recognize these pages:
+
+| Page | What it is |
+|------|------------|
+| `remoteok.com/remote-jobs/...` | Remote OK posting (listing page; Apply leads out) |
+| `remotive.com/remote-jobs/...` | Remotive posting (listing page; Apply leads out) |
+| `weworkremotely.com/remote-jobs/...` | We Work Remotely posting (listing page; Apply leads out) |
+| `remote.co/job/...` | Remote.co posting (listing page; Apply leads out) |
+| `job-boards.greenhouse.io`, `boards.greenhouse.io` | Greenhouse application form |
+| `jobs.lever.co` | Lever application form (the form is at `/apply`) |
+| `jobs.ashbyhq.com` | Ashby application form (the "Application" tab) |
+| `apply.workable.com` | Workable application form |
+| `*.bamboohr.com/careers/...` | BambooHR application form |
+| `*.myworkdayjobs.com`, `*.myworkdaysite.com` | Workday (needs a Workday account: the user signs in) |
+
+How to find the pipeline job on these pages:
+
+1. On a board page, the match call in Step 1 works with the board URL as it is.
+2. On the employer's ATS page the URL will not match. Read the company name and
+   job title off the page and pass them as the `hint`. A `hint-title` match
+   needs the user's OK, as always.
+3. A job that is only in the Reef **inbox** (Remote boards section of Reef
+   Watch, with a rank score but no pipeline number) has not been evaluated yet,
+   so it has no tailored documents. Tell the user to evaluate it first (in
+   Claude Code: `/career-ops pipeline`, or paste the URL), then come back. Never
+   write documents for a job without its evaluation report.
+
+Making the documents for a remote-board job works the same as for any other
+job: the tailored CV comes from **Generate CV** on the job in Reef Watch (it
+runs career-ops `pdf` mode, and its `verify-cv-facts.mjs` gate refuses any claim
+that is not in cv.md), and the cover letter from career-reef-cover-letter
+(saved through Career Reef, which runs the same fact gate). You may press
+Generate CV in the Career Reef tab yourself when the user asked for the CV;
+wait until the button turns into "View tailored CV" before attaching.
+
+If any page is a sign-in, single sign-on, Google sign-in, captcha or paywall:
+stop. Never type, paste or ask for a password. Tell the user which site needs
+them, let them sign in themselves, and continue only after they say they are
+signed in. If the career-ops Apply extension is on in that tab it has already
+raised a **Needs sign-in** alert on Career Reef; it clears when the user
+presses "I'm signed in".
+
+When everything is attached and filled, stop at the Submit button. Do not
+press it. Tell the user the application is ready for their review and that
+they press Submit themselves.
 
 ## Step 1: Find the job
 

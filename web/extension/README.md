@@ -42,7 +42,33 @@ it (or the toolbar button). Or open any posting yourself and click the toolbar
 button. If the site's button is worded differently
 and nothing happens, click it yourself. A career-ops badge in the bottom-right corner shows
 progress. On a multi-page form, each new page is filled when it appears. Review
-every field, then submit it yourself.
+every field, then submit it yourself. When the fill is done, the page's Submit
+button is outlined in red and a desktop notification says the application is
+ready. career-ops never presses Submit.
+
+### Sign-in, captcha and paywall pages (v0.4.0)
+
+When a page is a sign-in page, a single sign-on (Google, Microsoft, Okta), a
+visible captcha or a paywall, career-ops stops that job at once. It never types
+or stores a password. It then:
+
+- shows **Needs sign-in** in the badge, with an **I'm signed in** button,
+- raises a banner with a sound on Career Reef (every page), with **Open sign-in
+  page** and **I'm signed in** buttons,
+- shows a Windows desktop notification (click it to jump to the tab).
+
+Sign in yourself, then press **I'm signed in** in either place. The job picks
+up where it stopped. The stop survives page loads until you press it.
+
+### Session boards (Remote Jobs Finder)
+
+Some boards show listings only to signed-in members. career-ops never logs in
+or works around that. Open the board in Chrome, sign in yourself, open its job
+list, then click the career-ops toolbar button: on a session board it captures
+the listings the page shows (title, company, link, location), runs them through
+the same title and remote-scope filters as the scanner, and adds the new ones
+to your Reef inbox. If the page is a login, quiz or paywall, it raises **Needs
+sign-in** instead.
 
 ### Documents it attaches
 
@@ -67,4 +93,12 @@ Watch panel.
 
 - `bridge.js` runs on the dashboard and passes the Apply click to the extension.
 - `background.js` opens the tab, remembers which tabs career-ops opened, and calls `/api/apply/extension/draft`.
-- `filler.js` runs only in those tabs: waits out sign-in, reads the form, fills it.
+- `filler.js` runs only in those tabs: stops at sign-in/captcha/paywall pages and alerts you, reads the form, fills it, outlines Submit.
+- `icon128.png` is the notification icon.
+
+## Updating (after a career-ops change to this folder)
+
+Open `chrome://extensions`, find **career-ops Apply**, and click its reload
+arrow. Then reload any job tabs that were already open. The version shown
+there should read 0.4.0. The first click on a newly listed site may ask once
+for access.

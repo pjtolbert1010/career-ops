@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export type Stage = { label: string; count: number; note: string; href: string };
 
-// Found → Evaluated → Prepped → Submitted → Interview, as one hairline with
+// Found → Scored → Prepped → Ready for review → Applied → Interview, as one hairline with
 // serif numerals. Horizontal on desktop, vertical on phones.
 export function PipelineTimeline({ stages }: { stages: Stage[] }) {
   return (

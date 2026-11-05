@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { inter, instrumentSerif, instrumentSerifItalic, cormorant } from "@/lib/fonts";
 import { AppShell } from "@/components/app-shell";
 import { RouteProgressHost } from "@/components/route-progress-host";
+import { SigninBanner } from "@/components/signin-banner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { readFollowupsEnabled } from "@/lib/followups-server";
 import "./globals.css";
@@ -43,6 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <RouteProgressHost />
         <ThemeProvider>
+          <SigninBanner />
           <AppShell followupsEnabled={followupsEnabled}>{children}</AppShell>
         </ThemeProvider>
       </body>

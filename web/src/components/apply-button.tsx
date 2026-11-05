@@ -90,7 +90,7 @@ export function ApplyButton({
           : "Apply — opens the form pre-filled, you review and submit yourself"
       }
     >
-      {!large && <Send className="size-3.5" />} {opened ? "Opened in new tab" : large ? <>Open pre-filled application <span aria-hidden="true" className="lux-arrow">→</span></> : "Apply"}
+      {!large && <Send className="size-3.5" />} {opened ? "Opened in new tab" : large ? <>Open &amp; fill <span aria-hidden="true" className="lux-arrow">→</span></> : "Apply"}
     </button>
   );
 }

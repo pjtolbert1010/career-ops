@@ -11,6 +11,8 @@ import { DisplayHeading, Eyebrow, ImageSlot, Intro, PrimaryAction, Reveal, Secti
 import { JobCard, workStyle } from "@/components/lux/job-card";
 import { StatusPanel } from "@/components/lux/status-panel";
 import { PipelineTimeline } from "@/components/lux/pipeline-timeline";
+import { RemoteBoards } from "@/components/reef/remote-boards";
+import type { RemoteJob, RemoteSource } from "@/lib/remote-boards";
 
 // Reef Watch, editorial edition. Same data and the same actions as before
 // (job detail with ?job= in the URL, Apply, Generate CV, tailored documents,
@@ -31,6 +33,17 @@ export type MediaSlots = { openings: boolean; review: boolean; pipeline: boolean
 export function isPrepped(j: ReefJob): boolean {
   const needsSoq = j.calcareers || j.needs.soq;
   return j.pdfReady && j.docs.cv && (!needsSoq || j.docs.soq);
+}
+
+/** Fully prepped: CV + cover letter (or SOQ on CalCareers) in hand. */
+function hasAllDocs(j: ReefJob): boolean {
+  const wantsCover = !j.calcareers || j.needs.cover;
+  return isPrepped(j) && (!wantsCover || j.docs.cover);
+}
+
+/** Ready for review: fully prepped and confirmed open at the employer. */
+function readyForReview(j: ReefJob): boolean {
+  return hasAllDocs(j) && j.zone !== "kelp";
 }
 
 function docLinks(job: ReefJob) {
@@ -221,7 +234,7 @@ function Applications({ applied }: { applied: ReefApplied[] }) {
 
 type Filter = "all" | ReefZone;
 
-export function ReefWorld({ data, slots }: { data: ReefData; slots: MediaSlots }) {
+export function ReefWorld({ data, slots, remote }: { data: ReefData; slots: MediaSlots; remote?: { sources: RemoteSource[]; jobs: RemoteJob[] } }) {
   const [sel, setSel] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const drawerRef = useRef<HTMLElement>(null);
@@ -272,11 +285,19 @@ export function ReefWorld({ data, slots }: { data: ReefData; slots: MediaSlots }
     ...(["reef", "shelf", "kelp"] as const).map((z) => ({ id: z, label: ZONE_NAME[z], count: data.jobs.filter((j) => j.zone === z).length })),
   ];
 
+  // Found → Scored → Prepped → Ready for review → Applied (you mark it), then
+  // Interview. Found = unscored inbox rows; Scored = ranked inbox rows plus
+  // evaluated openings not yet fully prepped.
+  const remoteJobs = remote?.jobs ?? [];
+  const prepped = data.jobs.filter(hasAllDocs);
+  const reviewReady = data.jobs.filter(readyForReview);
+  const scoredInbox = Math.min(data.stats.inboxPending, remote?.jobs.filter((j) => j.rank !== null).length ?? 0);
   const stages = [
-    { label: "Found", count: data.stats.inboxPending, note: "In the inbox", href: "/pipeline" },
-    { label: "Evaluated", count: data.jobs.length, note: "Scored, awaiting you", href: "#openings" },
-    { label: "Prepped", count: ready.length, note: "Documents ready", href: "#review" },
-    { label: "Submitted", count: data.applied.filter((a) => ["Applied", "Responded", "Assessment"].includes(a.status)).length, note: "Applied", href: "#applications" },
+    { label: "Found", count: Math.max(0, data.stats.inboxPending - scoredInbox), note: "In the inbox, not scored yet", href: "/pipeline" },
+    { label: "Scored", count: scoredInbox + data.jobs.length - prepped.length, note: "Ranked or evaluated", href: "#openings" },
+    { label: "Prepped", count: prepped.length - reviewReady.length, note: "CV + cover letter ready", href: "#review" },
+    { label: "Ready for review", count: reviewReady.length, note: "Prepped and confirmed open", href: "#review" },
+    { label: "Applied", count: data.applied.filter((a) => ["Applied", "Responded", "Assessment"].includes(a.status)).length, note: "You marked it applied", href: "#applications" },
     { label: "Interview", count: data.stats.interviews, note: "Interview or offer", href: "#applications" },
   ];
 
@@ -339,6 +360,23 @@ export function ReefWorld({ data, slots }: { data: ReefData; slots: MediaSlots }
           </Reveal>
         )}
       </Section>
+
+      {/* 3b · REMOTE BOARDS */}
+      {remote && (
+        <Section id="remote" tone="white" labelledBy="remote-h">
+          <Intro
+            align="left"
+            eyebrow="Remote-only boards"
+            id="remote-h"
+            heading={<>Remote </>}
+            em="boards"
+            lede={<>Remote OK, Remotive, We Work Remotely and Remote.co, filtered to roles a California resident can take, $90K floor, scored for fit. Select a board to see only its postings.</>}
+          />
+          <Reveal className="mt-12">
+            <RemoteBoards sources={remote.sources} jobs={remoteJobs} />
+          </Reveal>
+        </Section>
+      )}
 
       {/* 4 · READY FOR REVIEW */}
       <Section id="review" tone="white" labelledBy="review-h">

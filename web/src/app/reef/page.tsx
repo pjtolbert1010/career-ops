@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ReefWorld } from "@/components/reef/reef-world";
 import { readReefData } from "@/lib/reef-data";
+import { readRemoteJobs, readRemoteSources } from "@/lib/remote-boards";
 
 export const dynamic = "force-dynamic"; // always read fresh local files
 
@@ -12,5 +13,6 @@ function mediaSlots() {
 }
 
 export default async function ReefPage() {
-  return <ReefWorld data={await readReefData()} slots={mediaSlots()} />;
+  const remoteJobs = readRemoteJobs();
+  return <ReefWorld data={await readReefData()} slots={mediaSlots()} remote={{ sources: readRemoteSources(remoteJobs), jobs: remoteJobs }} />;
 }

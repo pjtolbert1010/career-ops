@@ -125,7 +125,7 @@ a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
 .lux-stat-num { font-family: var(--lux-serif); font-size: var(--lux-t-stat); font-weight: 300; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--lux-ink); }
 
 /* Pipeline timeline */
-.lux-timeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: relative; }
+.lux-timeline { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: relative; }
 .lux-timeline::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 1px; background: var(--lux-hair); }
 .lux-dot { width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--lux-ink); background: var(--lux-paper); position: relative; }
 .lux-dot[data-on="true"] { background: var(--lux-ink); }

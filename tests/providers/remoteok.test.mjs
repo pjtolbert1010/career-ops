@@ -69,8 +69,8 @@ try {
 
   // Normalized shape: { title, url, company, location }, plus postedAt when the
   // row carries a parseable `date` (row 0 does, row 1 has none).
-  if (fetched[0] && Object.keys(fetched[0]).sort().join(',') === 'company,location,postedAt,title,url'
-      && fetched[1] && Object.keys(fetched[1]).sort().join(',') === 'company,location,title,url')
+  if (fetched[0] && Object.keys(fetched[0]).sort().join(',') === 'company,location,postedAt,remoteScope,title,url'
+      && fetched[1] && Object.keys(fetched[1]).sort().join(',') === 'company,location,remoteScope,title,url')
     pass('remoteok.fetch() returns { title, url, company, location } and postedAt only when dated');
   else fail(`remoteok.fetch() keys = ${JSON.stringify(fetched.map((j) => Object.keys(j)))}`);
 

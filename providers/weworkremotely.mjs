@@ -1,5 +1,7 @@
 // @ts-check
 import { decodeEntities } from './_html-entities.mjs';
+import { htmlToText } from './_html-to-text.mjs';
+import { classifyRemoteScope } from './_remote-scope.mjs';
 /** @typedef {import('./_types.js').Provider} Provider */
 
 // We Work Remotely provider - board-wide RSS feed
@@ -8,6 +10,11 @@ import { decodeEntities } from './_html-entities.mjs';
 // as providers/personio.mjs rather than adding an XML dependency.
 //
 // Wire in via a `job_boards:` entry with `provider: weworkremotely`.
+// Optional `categories:` list of WWR category slugs (e.g.
+// remote-management-and-finance-jobs) reads those category feeds
+// (https://weworkremotely.com/categories/{slug}.rss) instead of the global
+// feed, one request each, in sequence. Rows keep their weworkremotely.com URL
+// (link back to the original posting).
 
 const FEED_URL = 'https://weworkremotely.com/remote-jobs.rss';
 const TRUSTED_HOST = 'weworkremotely.com';
@@ -47,13 +54,35 @@ export default {
   },
 
   async fetch(entry, ctx) {
-    const feedUrl = assertWwrUrl(FEED_URL);
-    // redirect:'error' prevents SSRF via server-side redirects; combined with
-    // assertWwrUrl above it keeps the request pinned to weworkremotely.com.
-    const text = await ctx.fetchText(feedUrl, { redirect: 'error' });
-    return parseWwrFeed(text, fallbackCompany(entry));
+    const feeds = wwrFeedUrls(entry).map(assertWwrUrl);
+    const byUrl = new Map();
+    for (const feedUrl of feeds) {
+      // redirect:'error' prevents SSRF via server-side redirects; combined with
+      // assertWwrUrl above it keeps the request pinned to weworkremotely.com.
+      const text = await ctx.fetchText(feedUrl, { redirect: 'error' });
+      for (const job of parseWwrFeed(text, fallbackCompany(entry))) {
+        if (!byUrl.has(job.url)) byUrl.set(job.url, job);
+      }
+    }
+    return [...byUrl.values()];
   },
 };
+
+/**
+ * Feed URLs for an entry: one per `categories` slug, or the global feed.
+ * Slugs are restricted to [a-z0-9-] so a config value cannot steer the path.
+ * Exported for tests.
+ * @param {{ categories?: unknown }} entry
+ */
+export function wwrFeedUrls(entry = {}) {
+  const raw = Array.isArray(entry?.categories) ? entry.categories : [];
+  const slugs = [...new Set(raw
+    .filter((c) => typeof c === 'string')
+    .map((c) => c.trim().toLowerCase())
+    .filter((c) => /^[a-z0-9-]+$/.test(c)))];
+  if (!slugs.length) return [FEED_URL];
+  return slugs.map((slug) => `https://${TRUSTED_HOST}/categories/${slug}.rss`);
+}
 
 // Resolve a tag's inner text: unwrap a CDATA section, else decode entities.
 function extractText(inner) {
@@ -119,15 +148,29 @@ export function parseWwrFeed(xml, defaultCompany = 'We Work Remotely') {
     if (!rawTitle) continue;
 
     const { company, title } = splitTitle(rawTitle, fallback);
-    const location = tagText(item, 'region') || tagText(item, 'category');
+    const region = tagText(item, 'region');
+    // <country> carries flag emoji before each name; keep only the names.
+    const country = tagText(item, 'country').replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '').replace(/\s+/g, ' ').trim();
+    const location = [region, country].filter(Boolean).join(' / ') || tagText(item, 'category');
+    const description = htmlToText(tagText(item, 'description'));
 
-    jobs.push({
+    /** @type {any} */
+    const job = {
       title,
       company,
       location,
       url,
       postedAt: toEpochMs(tagText(item, 'pubDate')),
-    });
+      // "Anywhere in the World" plus a country list means "anywhere in these
+      // countries": classify on the list alone so it is not read as worldwide.
+      remoteScope: classifyRemoteScope({
+        location: country && /anywhere/i.test(region) ? country : `${region} ${country}`,
+        description,
+        title,
+      }),
+    };
+    if (description) job.description = description;
+    jobs.push(job);
   }
 
   return jobs;

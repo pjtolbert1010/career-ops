@@ -27,7 +27,16 @@ test('a CLI that fails every batch exits 1 with a one-line reason and no prompt 
   assert.doesNotMatch(result.stderr, /Command failed/);
   assert.equal(result.stderr.match(/CLI call failed \(.* exited with code 1: SyntaxError/g)?.length, 2, result.stderr);
   assert.match(result.stderr, /Every call to .* failed/);
-  assert.equal(readFileSync(pipeline, 'utf8'), original);
+  // The keyword + salary fallback scores every row instead of leaving it
+  // unranked (2026-11-05): each row gains exactly one `fallback:` rank, the
+  // rest of the row is unchanged, and the run still exits 1.
+  const after = readFileSync(pipeline, 'utf8').trimEnd().split('\n');
+  const before = original.trimEnd().split('\n');
+  assert.equal(after.length, before.length);
+  after.forEach((line, i) => {
+    assert.ok(line.startsWith(`${before[i]} | rank: `), line);
+    assert.match(line, /rank: \d\.\d\/5 — fallback: /);
+  });
 });
 
 test('describeCliFailure picks the error line and strips color codes', () => {

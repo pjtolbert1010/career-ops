@@ -1087,8 +1087,38 @@ export function buildVisaFilter(visaFilter) {
   };
 }
 
+// ── Remote-scope filter ─────────────────────────────────────────────
+// Optional. If `remote_scope_filter` is absent from portals.yml, the verdict is
+// always null and location_filter decides, byte-identical to before.
+//
+// Only providers that classify a posting's remote scope set `job.remoteScope`
+// (providers/_remote-scope.mjs: remoteok, remotive, weworkremotely, remoteco).
+// For such a job the scope verdict REPLACES location_filter, because a remote
+// board's location cell ("Worldwide", "USA Only", "Europe") is a scope, not a
+// city, and an allow-list of cities cannot read it.
+//
+//   remote_scope_filter:
+//     allow: [us, worldwide, unknown]   # scopes a US / California resident can take
+//
+// Returns true (keep), false (drop) or null (no scope on the job: fall back to
+// location_filter).
+export function buildRemoteScopeFilter(remoteScopeFilter) {
+  if (!remoteScopeFilter) return () => null;
+  const allow = new Set(
+    (Array.isArray(remoteScopeFilter.allow) ? remoteScopeFilter.allow : ['us', 'worldwide', 'unknown'])
+      .filter((s) => typeof s === 'string')
+      .map((s) => s.trim().toLowerCase()),
+  );
+  return (scope) => {
+    if (typeof scope !== 'string' || !scope) return null;
+    return allow.has(scope.toLowerCase());
+  };
+}
+
 // ── Salary filter ───────────────────────────────────────────────────
 // Optional. If `salary_filter` is absent from portals.yml, all salaries pass.
+// `flag_unknown: true` adds "salary unknown" to the pipeline row's note: when
+// a job that passed every filter carries no salary, so ranking can weigh it.
 // Semantics:
 //   - min/max are annual compensation filters (use annualized values)
 //   - max: 0 means "no upper limit"
@@ -4267,6 +4297,8 @@ async function main() {
   // Derived by the same helper so the hint and the filter cannot disagree.
   const earlyStopSinceMs = resolveEarlyStopMs(effectiveAfter, config.max_posting_age_days);
   const salaryFilter = buildSalaryFilter(config.salary_filter);
+  const remoteScopeFilter = buildRemoteScopeFilter(config.remote_scope_filter);
+  const flagUnknownSalary = config.salary_filter?.flag_unknown === true;
   const trustValidator = buildTrustValidator(config.trust_filter);
   const contentFilter = buildContentFilter(config.content_filter);
   const candidateCountry = loadCandidateCountry();
@@ -4681,7 +4713,8 @@ async function main() {
         }
         // job.title is passed so a role whose remoteness is stated in the title
         // ("Program Manager - Remote") isn't rejected for a city-only location.
-        if (!locationFilter(job.location, job.url, job.title)) {
+        const scopeVerdict = remoteScopeFilter(job.remoteScope);
+        if (scopeVerdict === false || (scopeVerdict === null && !locationFilter(job.location, job.url, job.title))) {
           totalFilteredLocation++;
           if (!dryRun) locationFilteredOffers.push({ ...job, source: sourceName });
           continue;
@@ -4710,6 +4743,11 @@ async function main() {
         if (!visaFilter(job.description)) {
           totalFilteredVisa++;
           continue;
+        }
+        if (flagUnknownSalary && !job.salary) {
+          job.note = typeof job.note === 'string' && job.note.trim()
+            ? `${job.note} — salary unknown`
+            : 'salary unknown';
         }
         const dedupUrl = normalizeUrlForDedup(job.url);
         const language = languageFormsForDedup(job.language);

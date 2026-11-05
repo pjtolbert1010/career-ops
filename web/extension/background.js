@@ -78,7 +78,49 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     if (msg.type === "status" && sender.tab) {
       // A frame's progress, shown by the badge in the tab's top frame.
-      chrome.tabs.sendMessage(sender.tab.id, { type: "status-relay", text: msg.text, kind: msg.kind, retry: msg.retry }, { frameId: 0 }).catch(() => {});
+      chrome.tabs.sendMessage(sender.tab.id, { type: "status-relay", text: msg.text, kind: msg.kind, retry: msg.retry, signin: msg.signin }, { frameId: 0 }).catch(() => {});
+      return sendResponse({ ok: true });
+    }
+    if (msg.type === "needs-signin" && sender.tab) {
+      // The filler hit a login / SSO / captcha / paywall and stopped. Keep the
+      // tab stopped across page loads, tell Career Reef, and notify.
+      const all = await jobs();
+      const job = all[sender.tab.id];
+      if (!job || !job.on) return sendResponse({ ok: false });
+      const pageUrl = typeof msg.url === "string" && /^https?:\/\//i.test(msg.url) ? msg.url : sender.url;
+      const first = !job.signinPaused;
+      job.signinPaused = true;
+      job.signinSite = hostOf(pageUrl);
+      await saveJobs(all);
+      if (first) await raiseSignin(job.server, { url: pageUrl, reason: String(msg.reason || "").slice(0, 200), kind: msg.kind, source: "apply", tabId: sender.tab.id });
+      return sendResponse({ ok: true });
+    }
+    if (msg.type === "signin-status" && sender.tab) {
+      // Still stopped? Cleared when "I'm signed in" is pressed here or on Career Reef.
+      const all = await jobs();
+      const job = all[sender.tab.id];
+      if (!job || !job.signinPaused) return sendResponse({ paused: false });
+      const open = await openAlertFor(job.server, job.signinSite);
+      if (open === false) {
+        job.signinPaused = false;
+        await saveJobs(all);
+        return sendResponse({ paused: false });
+      }
+      return sendResponse({ paused: true });
+    }
+    if (msg.type === "signin-done" && sender.tab) {
+      const all = await jobs();
+      const job = all[sender.tab.id];
+      if (!job) return sendResponse({ ok: false });
+      if (job.signinSite) await resolveSignin(job.server, job.signinSite);
+      job.signinPaused = false;
+      await saveJobs(all);
+      chrome.tabs.sendMessage(sender.tab.id, { type: "signin-resume" }).catch(() => {});
+      return sendResponse({ ok: true });
+    }
+    if (msg.type === "ready-for-submit" && sender.tab) {
+      const job = await jobFor(sender.tab.id);
+      notify(`ready-${sender.tab.id}`, "Application ready for your review", `${job && job.company ? `${job.company}: ` : ""}filled and stopped at Submit. Review it, then press Submit yourself.`, { tabId: sender.tab.id });
       return sendResponse({ ok: true });
     }
     if (msg.type === "react-select" && sender.tab) {
@@ -210,6 +252,166 @@ function reactSelectInPage(coId, op, value) {
   })();
 }
 
+// ---- "Needs sign-in" alerts + desktop notifications
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+// notification id -> what clicking it opens (a tab to focus, or a URL).
+const notifyTargets = new Map();
+
+function notify(id, title, message, target = {}) {
+  notifyTargets.set(id, target);
+  chrome.notifications
+    .create(id, { type: "basic", iconUrl: "icon128.png", title, message, priority: 2, requireInteraction: true, ...(target.loginUrl ? { buttons: [{ title: "Open sign-in page" }] } : {}) })
+    .catch(() => {});
+}
+
+chrome.notifications.onClicked.addListener(async (id) => {
+  const t = notifyTargets.get(id) || {};
+  if (t.tabId != null) {
+    const tab = await chrome.tabs.get(t.tabId).catch(() => null);
+    if (tab) {
+      await chrome.tabs.update(tab.id, { active: true }).catch(() => {});
+      await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+    }
+  } else if (t.loginUrl) {
+    await chrome.tabs.create({ url: t.loginUrl }).catch(() => {});
+  }
+  chrome.notifications.clear(id).catch(() => {});
+});
+chrome.notifications.onButtonClicked.addListener(async (id) => {
+  const t = notifyTargets.get(id) || {};
+  if (t.loginUrl) await chrome.tabs.create({ url: t.loginUrl }).catch(() => {});
+  chrome.notifications.clear(id).catch(() => {});
+});
+
+/** Tell Career Reef (banner + sound) and Windows (notification) that a site needs the user. */
+async function raiseSignin(server, { url, loginUrl, reason, kind, source, tabId }) {
+  const site = hostOf(url);
+  try {
+    await fetch(`${server}/api/signin-alerts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, loginUrl: loginUrl || url, reason, kind, source }),
+    });
+  } catch {
+    /* dashboard down: the notification below still tells the user */
+  }
+  notify(`signin-${site}`, `Sign-in needed: ${site}`, `${reason || "This page needs you to sign in."} career-ops stopped there. Sign in yourself, then press "I'm signed in".`, {
+    tabId,
+    loginUrl: loginUrl || url,
+  });
+}
+
+/** true / false when Career Reef answers; null when it can't be reached. */
+async function openAlertFor(server, site) {
+  try {
+    const r = await fetch(`${server}/api/signin-alerts`);
+    if (!r.ok) return null;
+    const { alerts = [] } = await r.json();
+    return alerts.some((a) => a.site === site);
+  } catch {
+    return null;
+  }
+}
+
+async function resolveSignin(server, site) {
+  try {
+    await fetch(`${server}/api/signin-alerts`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site }) });
+  } catch {
+    /* dashboard down */
+  }
+  chrome.notifications.clear(`signin-${site}`).catch(() => {});
+}
+
+// ---- session sources: boards that show listings only to a signed-in member.
+// The toolbar button on one of these captures the listings the page already
+// shows (in the user's own signed-in Chrome) instead of filling a form. If the
+// page is a login, quiz or paywall, it raises "Needs sign-in" and stops.
+const SESSION_SOURCES = {
+  "remotejobsfinder.co": { id: "remotejobsfinder", name: "Remote Jobs Finder", loginUrl: "https://remotejobsfinder.co/" },
+};
+
+function sessionSourceFor(url) {
+  const host = hostOf(url);
+  return Object.entries(SESSION_SOURCES).find(([h]) => host === h || host.endsWith(`.${h}`))?.[1] || null;
+}
+
+// Runs in the page: reads job links off the rendered listing. Self-contained.
+function captureListingsInPage() {
+  const text = (document.body && document.body.innerText ? document.body.innerText : "").slice(0, 8000);
+  const pw = Array.from(document.querySelectorAll("input[type=password]")).some((p) => p.offsetParent !== null);
+  const loginish = pw || /\/(login|log-?in|sign-?in|signup|sign-?up|auth|onboarding|quiz)(\/|$)/i.test(location.pathname);
+  const paywall = /unlock all premium|hidden jobs|upgrade to (see|view|unlock)|subscribe to (see|view|unlock)|members?[- ]only/i.test(text);
+  const out = [];
+  const seen = new Set();
+  for (const a of document.querySelectorAll("a[href]")) {
+    const href = a.href;
+    if (!/^https?:/i.test(href) || seen.has(href)) continue;
+    if (!/job|position|career|opening|vacanc/i.test(href)) continue;
+    const card = a.closest("article, li, [class*='card' i], [class*='job' i]") || a;
+    const lines = (card.innerText || a.innerText || "").split("\n").map((s) => s.trim()).filter(Boolean);
+    const title = ((a.innerText || "").trim().split("\n")[0] || lines[0] || "").slice(0, 160);
+    if (title.length < 4) continue;
+    const company = lines.find((l) => l !== title && l.length < 80 && !/remote|ago|\$|apply/i.test(l)) || "";
+    const location = lines.find((l) => /remote|anywhere|united states|usa|worldwide|europe|americas/i.test(l)) || "";
+    seen.add(href);
+    out.push({ title, company, url: href, location });
+    if (out.length >= 200) break;
+  }
+  const blocked = loginish || (paywall && out.length === 0);
+  return {
+    jobs: blocked ? [] : out,
+    signin: blocked ? { kind: loginish ? "login" : "paywall", reason: loginish ? "The site is asking you to sign in." : "The site shows listings only to signed-in members." } : null,
+  };
+}
+
+function toastInPage(text, ok) {
+  const id = "career-ops-capture";
+  document.getElementById(id)?.remove();
+  const el = document.createElement("div");
+  el.id = id;
+  el.textContent = text;
+  el.style.cssText = `position:fixed;right:16px;bottom:16px;z-index:2147483647;max-width:340px;padding:10px 12px;border-radius:10px;font:13px/1.4 system-ui,sans-serif;color:#fff;background:${ok ? "#166534" : "#92400e"};box-shadow:0 4px 16px rgba(0,0,0,.25)`;
+  (document.body || document.documentElement).appendChild(el);
+  setTimeout(() => el.remove(), 12000);
+}
+
+async function captureSession(tab, source) {
+  const { lastServer = DEFAULT_SERVER } = await chrome.storage.local.get("lastServer");
+  let result = null;
+  try {
+    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: captureListingsInPage });
+    result = res ? res.result : null;
+  } catch {
+    result = null;
+  }
+  const say = (text, ok) => chrome.scripting.executeScript({ target: { tabId: tab.id }, func: toastInPage, args: [text, ok] }).catch(() => {});
+  if (!result) return say("career-ops couldn't read this page.", false);
+  if (result.signin) {
+    await raiseSignin(lastServer, { url: tab.url, loginUrl: source.loginUrl, reason: `${source.name}: ${result.signin.reason}`, kind: result.signin.kind, source: source.id, tabId: tab.id });
+    return say(`Stopped: ${result.signin.reason} Sign in yourself, open the job list, then click career-ops again.`, false);
+  }
+  try {
+    const r = await fetch(`${lastServer}/api/session-capture`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: source.id, pageUrl: tab.url, jobs: result.jobs }),
+    });
+    const c = await r.json().catch(() => ({}));
+    if (!r.ok) return say(`career-ops: ${c.error || `capture failed (${r.status})`}`, false);
+    say(`career-ops read ${c.received} listings: ${c.added} new added to your Reef inbox (${c.title} off-target titles, ${c.scope} not open to US residents, ${c.dupes} already seen).`, true);
+  } catch {
+    say("career-ops: couldn't reach Career Reef. Is the dashboard running?", false);
+  }
+}
+
 // ---- on / off
 
 async function showOn(tabId, on) {
@@ -242,7 +444,7 @@ async function activate(tab) {
 
 async function deactivate(tabId) {
   const all = await jobs();
-  if (all[tabId]) all[tabId].on = false;
+  if (all[tabId]) Object.assign(all[tabId], { on: false, signinPaused: false });
   await saveJobs(all);
   await showOn(tabId, false);
   chrome.tabs.sendMessage(tabId, { type: "stop" }).catch(() => {});
@@ -261,6 +463,8 @@ chrome.action.onClicked.addListener(async (tab) => {
     allowed = false;
   }
   if (!allowed) return;
+  const session = sessionSourceFor(tab.url);
+  if (session) return captureSession(tab, session);
   const job = await jobFor(tab.id);
   if (job && job.on) return deactivate(tab.id);
   return activate(tab);
