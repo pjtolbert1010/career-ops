@@ -111,7 +111,11 @@ function readResume(): XData["resume"] {
   try {
     const file = path.join(careerOpsRoot(), "cv.md");
     const text = fs.readFileSync(file, "utf8");
-    const headline = text.split(/\r?\n/).find((l) => l.trim() && !l.startsWith("#") && !l.includes("@") && l.length < 140) ?? "";
+    // First sentence of the Summary section; else the top heading.
+    const summary = text.match(/^##[^\n]*(?:summary|profile)[^\n]*\r?\n+([^\n#][^\n]*)/im)?.[1] ?? "";
+    const sentence = summary.split(/(?<=\.)\s/)[0];
+    const firstSentence = sentence.length > 180 ? `${sentence.slice(0, 180).replace(/\s+\S*$/, "")}…` : sentence;
+    const headline = firstSentence || (text.match(/^#\s+(.+)$/m)?.[1] ?? "");
     return {
       exists: true,
       words: text.split(/\s+/).filter(Boolean).length,

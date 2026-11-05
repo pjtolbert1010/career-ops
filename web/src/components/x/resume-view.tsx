@@ -42,7 +42,7 @@ function AtsCheck({ jobs }: { jobs: XJob[] }) {
     <div className="flex flex-col gap-5 border border-[var(--lux-hair)] bg-[var(--lux-white)] p-6">
       <label className="flex flex-col gap-1">
         <span className="lux-eyebrow">Check your resume against</span>
-        <select value={report} onChange={(e) => setReport(e.target.value)} className="min-h-[44px] border border-[var(--lux-hair)] bg-transparent px-2 text-[15px]">
+        <select value={report} onChange={(e) => setReport(e.target.value)} className="min-h-[44px] w-full min-w-0 border border-[var(--lux-hair)] bg-transparent px-2 text-[15px]">
           {withReport.map((j) => (
             <option key={j.id} value={j.report}>
               {j.employer} · {j.title}
@@ -94,7 +94,7 @@ function Chips({ label, items, tone }: { label: string; items: string[]; tone: "
 export function ResumeView({ resume, jobs }: { resume: XData["resume"]; jobs: XJob[] }) {
   const tailored = jobs.filter((j) => j.docs.cv);
   return (
-    <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr]">
+    <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-3 border border-[var(--lux-hair)] bg-[var(--lux-white)] p-6">
           <Eyebrow>Base resume</Eyebrow>
