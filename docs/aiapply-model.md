@@ -68,3 +68,30 @@ else is optional.
   merge, `/api/cv` after confirm, workers).
 - System-layer files edited on this branch (all under `web/`) could be
   overwritten by `update-system.mjs`; that is why this lives on its own branch.
+
+## 5. Side by side: Career Reef (main, :3000) vs Career ops X Ai apply (this branch, /x on :3101)
+
+Checked in the browser on 2026-11-05 against the real data (CAREER_OPS_ROOT=C:\career-ops).
+Nothing was saved, generated or submitted during the checks.
+
+| Flow | Career Reef `/reef` | X `/x` | Better |
+|------|---------------------|--------|--------|
+| Home | Long editorial page: video hero, stats, openings, remote boards, review, pipeline, status. Beautiful, but the next action is a scroll away. | One headline ("1 job is ready to apply"), one primary button, setup checklist, 4 stats, top 3 matches, recent applications. | X for speed; Reef for atmosphere. |
+| Job matching | Cards with fit /10, zone tabs (Apply-first, closer look, verify). | Cards with match /100, fit label, "why it fits", ✓/~/✗ qualification checklist from the report's CV Match table; search, Remote only, Ready only, min score. | X (checklist and filters). Reef's verify-first zones are clearer about liveness. |
+| Job detail | Facts, why it fits, verification, Apply, Generate CV, documents. | Same actions plus full qualification checklist, "I submitted it" (marks Applied) and "Skip" (Discarded) with Undo. | X (fewer trips to the tracker). |
+| Apply queue | "Ready for review" list. | Two lanes: Ready to apply (Open & fill per job) and Needs documents ("Make the next 3 resumes" in one press). | X. |
+| Resume | `/cv` editor, separate. | Base resume, every tailored version, ATS keyword coverage per job (keyword-match.mjs). | X. |
+| Cover letter | Instructions to use Chrome skill or CLI. | Existing cover form inline in the job panel. | X, slightly. |
+| Tracker | Applied list on Reef; `/pipeline` table. | Board by stage with one-press moves (Responded, Interview, Rejected, Offer, Hired). | X for glanceability; `/pipeline` still better for bulk work. |
+| Onboarding | Onboarding banner, scattered pages. | 3-step wizard: resume import, roles/salary/where (writes only changed fields), done. | X. |
+| Tools | Menu drawer. | Tools hub with one-line descriptions. | Tie. |
+
+Not exercised (they write real data or spend model usage): Save in the wizard, "Make the next 3
+resumes", "I submitted it", "Skip", tracker moves, Open & fill. They call the existing
+`/api/profile`, `/api/run` (pdf), `/api/status` (set-status.mjs) and the extension.
+
+Found in passing: Reef's Generate CV passes the tracker row number to the pdf worker, which
+expects a report number. They differ on 2 of 119 rows; X passes the report number.
+
+Suggested merge: take X's match checklist, remote filter, queue lanes, ATS check, tracker board
+and wizard into main; keep Reef's editorial home as an optional overview.
