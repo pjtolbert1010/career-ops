@@ -95,6 +95,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (first) await raiseSignin(job.server, { url: pageUrl, reason: String(msg.reason || "").slice(0, 200), kind: msg.kind, source: "apply", tabId: sender.tab.id });
       return sendResponse({ ok: true });
     }
+    if (msg.type === "precheck-signin" && sender.tab) {
+      // A tab the dashboard opened hit a sign-in page before the user pressed
+      // Fill (offerFill's watcher). One alert per site per tab.
+      const all = await jobs();
+      const job = all[sender.tab.id];
+      if (!job || job.on) return sendResponse({ ok: false });
+      const pageUrl = typeof msg.url === "string" && /^https?:\/\//i.test(msg.url) ? msg.url : sender.url;
+      const site = hostOf(pageUrl);
+      if (job.precheckSite === site) return sendResponse({ ok: true });
+      job.precheckSite = site;
+      job.signinSite = site;
+      await saveJobs(all);
+      await raiseSignin(job.server, { url: pageUrl, reason: String(msg.reason || "").slice(0, 200), kind: msg.kind, source: "open", tabId: sender.tab.id });
+      return sendResponse({ ok: true });
+    }
+    if (msg.type === "precheck-done" && sender.tab) {
+      // "I'm signed in" on that panel: clear the alert for the site.
+      const all = await jobs();
+      const job = all[sender.tab.id];
+      if (!job) return sendResponse({ ok: false });
+      if (job.precheckSite) await resolveSignin(job.server, job.precheckSite);
+      job.precheckSite = "";
+      await saveJobs(all);
+      return sendResponse({ ok: true });
+    }
     if (msg.type === "signin-status" && sender.tab) {
       // Still stopped? Cleared when "I'm signed in" is pressed here or on Career Reef.
       const all = await jobs();
@@ -472,24 +497,80 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 // The "Fill this application" button for a tab the dashboard opened, until
 // the user turns career-ops on there. Runs in the page, so it is self-contained.
+// The panel on a tab the dashboard opened, until the user turns career-ops on
+// there: a "Fill this application" button, plus a check-only watcher. The
+// watcher reads the page every few seconds (sign-in pages often appear without
+// a page load, e.g. Workday's Apply -> Sign In) and, on a sign-in, single
+// sign-on, captcha or paywall page, tells the background, which raises the
+// Career Reef banner, the Windows notification and the chime. It never types,
+// clicks or reads a password. Runs in the page, so it is self-contained.
 function offerFill() {
-  if (window !== window.top || document.getElementById("career-ops-offer")) return;
+  if (window !== window.top || window.__careerOpsOffer) return;
+  window.__careerOpsOffer = true;
+  const LOGIN_PATH = /\/(login|log-?in|sign-?in|signin|register|sign-?up|auth|account|mfa|2fa|sso|oauth2?)(\/|$|\?|#)/i;
+  const SSO_URL = /accounts\.google\.com|login\.microsoftonline\.com|\.okta\.com|\.auth0\.com|\/sso\/|\/saml/i;
+  const shown = (el, minH = 1) => {
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    return r.width > 0 && r.height >= minH && cs.visibility !== "hidden" && cs.display !== "none";
+  };
+  function blocked() {
+    const u = location;
+    if (SSO_URL.test(u.href)) return { kind: "sso", reason: "a single sign-on page" };
+    if (LOGIN_PATH.test(`${u.pathname}${u.search}${u.hash}`) || /^(login|auth|sso|accounts?)\./i.test(u.hostname)) return { kind: "login", reason: "a sign-in page" };
+    if (Array.from(document.querySelectorAll("input[type=password]")).some((p) => shown(p))) return { kind: "login", reason: "a sign-in form" };
+    if (/^(just a moment|attention required|verify you are human|security check)/i.test(document.title.trim())) return { kind: "captcha", reason: "a captcha / human check" };
+    const frames = document.querySelectorAll('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="challenges.cloudflare.com"], iframe[title*="captcha" i]');
+    for (const f of frames) if (!/size=invisible/i.test(f.src) && shown(f, 60)) return { kind: "captcha", reason: "a captcha / human check" };
+    if (Array.from(document.querySelectorAll(".cf-turnstile, #challenge-form")).some((e) => shown(e, 20))) return { kind: "captcha", reason: "a captcha / human check" };
+    const inputs = document.querySelectorAll("input:not([type=hidden]), textarea, select").length;
+    const text = (document.body && document.body.innerText ? document.body.innerText : "").slice(0, 6000);
+    if (inputs < 3 && /\b(members?[- ]only|unlock (all )?premium|upgrade to (see|view|apply|unlock)|subscribe to (see|view|apply|unlock)|this job is for (premium|paid) members|hidden jobs)\b/i.test(text)) return { kind: "paywall", reason: "a paywall or members-only page" };
+    return null;
+  }
   const host = document.createElement("div");
   host.id = "career-ops-offer";
   host.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:2147483647;";
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `<style>
-    .b{font:13px/1.4 system-ui,sans-serif;max-width:300px;padding:10px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);color:#fff;background:#1f2937}
+    .b{font:13px/1.4 system-ui,sans-serif;max-width:320px;padding:10px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.25);color:#fff;background:#1f2937}
+    .b.warn{background:#92400e}
     .t{font-weight:600;margin-bottom:4px} button{margin-top:8px;padding:6px 12px;border-radius:6px;border:0;background:#16a34a;color:#fff;font:inherit;font-weight:600;cursor:pointer}
-    .x{background:none;margin:0 0 0 8px;padding:0;font-weight:400;opacity:.8}
-  </style><div class="b"><div class="t">career-ops</div>Sign in first if the site asks, then turn career-ops on to fill this application. It never submits.
-    <div><button class="go">Fill this application</button><button class="x">Not now</button></div></div>`;
+    .s{background:#2563eb;margin-right:6px} .x{background:none;margin:0 0 0 8px;padding:0;font-weight:400;opacity:.8} [hidden]{display:none}
+  </style><div class="b"><div class="t">career-ops</div><div class="m">Sign in first if the site asks, then turn career-ops on to fill this application. It never submits.</div>
+    <div><button class="s" hidden>I'm signed in</button><button class="go">Fill this application</button><button class="x">Not now</button></div></div>`;
+  const box = root.querySelector(".b");
+  const msg = root.querySelector(".m");
+  const signedIn = root.querySelector(".s");
   root.querySelector(".go").onclick = () => {
     host.remove();
     chrome.runtime.sendMessage({ type: "activate" }).catch(() => {});
   };
   root.querySelector(".x").onclick = () => host.remove();
+  signedIn.onclick = () => {
+    chrome.runtime.sendMessage({ type: "precheck-done" }).catch(() => {});
+    box.classList.remove("warn");
+    signedIn.hidden = true;
+    msg.textContent = "Thanks. Press Fill this application when the form is showing. career-ops never submits.";
+  };
   (document.body || document.documentElement).appendChild(host);
+  let reported = "";
+  let timer = 0;
+  const check = () => {
+    if (!chrome.runtime || !chrome.runtime.id) return clearInterval(timer);
+    const b = blocked();
+    if (!b) return;
+    const key = `${location.hostname}|${b.kind}`;
+    if (key === reported) return;
+    reported = key;
+    chrome.runtime.sendMessage({ type: "precheck-signin", kind: b.kind, reason: `This application needs you: ${b.reason}.`, url: location.href }).catch(() => {});
+    if (!host.isConnected) (document.body || document.documentElement).appendChild(host);
+    box.classList.add("warn");
+    signedIn.hidden = false;
+    msg.textContent = `Sign-in needed: ${b.reason} on ${location.hostname}. Sign in yourself (career-ops never types or stores passwords), then press I'm signed in here or on Career Reef.`;
+  };
+  timer = setInterval(check, 2500);
+  check();
 }
 
 // Each page a tab loads: fill it when career-ops is on there; on a tab the
