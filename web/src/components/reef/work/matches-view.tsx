@@ -2,16 +2,16 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { XJob } from "@/lib/x-data";
-import { MatchCard } from "@/components/x/match-card";
-import { JobDrawer } from "@/components/x/job-panel";
-import { useSelectedJob } from "@/components/x/use-selected-job";
+import type { MatchJob } from "@/lib/match-data";
+import { MatchCard } from "@/components/reef/work/match-card";
+import { JobDrawer } from "@/components/reef/work/job-panel";
+import { useSelectedJob } from "@/components/reef/work/use-selected-job";
 
 const MIN_OPTIONS = [0, 60, 70, 80];
 
-// aiapply-style job search over the evaluated matches: one search box, three
+// Job search over the evaluated matches: one search box, three
 // filters, cards with a /100 score and a qualification checklist.
-export function MatchesView({ jobs }: { jobs: XJob[] }) {
+export function MatchesView({ jobs }: { jobs: MatchJob[] }) {
   const [q, setQ] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [readyOnly, setReadyOnly] = useState(false);

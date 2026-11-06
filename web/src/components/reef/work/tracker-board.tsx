@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { XBoardItem, XData } from "@/lib/x-data";
-import { setStatus } from "@/components/x/status-actions";
+import type { BoardItem, MatchData } from "@/lib/match-data";
+import { setStatus } from "@/components/reef/work/status-actions";
 
-const COLUMNS: { key: keyof XData["board"]; label: string; note: string }[] = [
+const COLUMNS: { key: keyof MatchData["board"]; label: string; note: string }[] = [
   { key: "applied", label: "Applied", note: "Waiting to hear back" },
   { key: "process", label: "In process", note: "Responded, assessment or interview" },
   { key: "offer", label: "Offer", note: "Offer or hired" },
@@ -22,7 +22,7 @@ const MOVES: Record<string, string[]> = {
   Offer: ["Hired"],
 };
 
-function Card({ item }: { item: XBoardItem }) {
+function Card({ item }: { item: BoardItem }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -61,7 +61,7 @@ function Card({ item }: { item: XBoardItem }) {
       {MOVES[item.status] && (
         <span className="flex flex-wrap gap-2 pt-1">
           {MOVES[item.status].map((to) => (
-            <button key={to} type="button" disabled={busy} onClick={() => move(to)} className="border border-[var(--lux-hair)] px-2 py-1 text-[11px] uppercase tracking-[.14em] hover:border-[var(--lux-ink)]">
+            <button key={to} type="button" disabled={busy} onClick={() => move(to)} className="border border-[var(--lux-hair)] px-2 py-1 text-[13px] hover:border-[var(--lux-ink)]">
               {to}
             </button>
           ))}
@@ -72,7 +72,7 @@ function Card({ item }: { item: XBoardItem }) {
   );
 }
 
-export function TrackerBoard({ board }: { board: XData["board"] }) {
+export function TrackerBoard({ board }: { board: MatchData["board"] }) {
   return (
     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
       {COLUMNS.map((c) => (

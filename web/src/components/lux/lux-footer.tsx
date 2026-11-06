@@ -17,7 +17,7 @@ export function LuxFooter() {
             ))}
           </nav>
         </div>
-        <div className="flex flex-col justify-between gap-3 text-[11px] uppercase tracking-[0.22em] text-[#9aa3a9] sm:flex-row">
+        <div className="flex flex-col justify-between gap-3 text-[13px] tracking-[0.04em] text-[#9aa3a9] sm:flex-row">
           <span>© Career Reef</span>
           <span>Private · local-first · you press submit</span>
         </div>

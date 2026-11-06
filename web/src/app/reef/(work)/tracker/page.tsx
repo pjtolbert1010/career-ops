@@ -1,10 +1,10 @@
-import { TrackerBoard } from "@/components/x/tracker-board";
-import { readXData } from "@/lib/x-data";
+import { TrackerBoard } from "@/components/reef/work/tracker-board";
+import { readMatchData } from "@/lib/match-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function XTracker() {
-  const data = await readXData();
+export default async function TrackerPage() {
+  const data = await readMatchData();
   return (
     <>
       <header className="mb-10 flex flex-col gap-3">

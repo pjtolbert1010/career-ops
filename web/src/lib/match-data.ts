@@ -5,17 +5,16 @@ import { canonicalizeStatus } from "@/lib/core/states";
 import { scoreNum } from "@/lib/format";
 import { readMachineSummary } from "@/lib/machine-summary.mjs";
 import { readReefData, type ReefJob } from "@/lib/reef-data";
-
-// Career ops X Ai apply: a read-only view for the /x pages, modeled on
-// aiapply's one-profile, one-queue, one-button flow. Built on Reef Watch's
+// Career Reef work pages (Matches, Apply queue, Resume, Tracker, Setup): a
+// read-only view of each job as one profile, one queue and one Apply button. Built on Reef Watch's
 // readReefData() so both views agree on every job; this file only adds the
 // match-card details (score out of 100, qualification checklist) and the
 // tracker board. Nothing here writes.
 
 export type Qualification = { text: string; met: "yes" | "partial" | "no" };
 
-export type XJob = ReefJob & {
-  /** Evaluation score (1-5) as a 0-100 match score, the way aiapply shows fit. */
+export type MatchJob = ReefJob & {
+  /** Evaluation score (1-5) as a 0-100 match score, for the match cards. */
   match: number;
   strengths: string[];
   gaps: string[];
@@ -27,7 +26,7 @@ export type XJob = ReefJob & {
   lane: "prepare" | "ready";
 };
 
-export type XBoardItem = {
+export type BoardItem = {
   n: string;
   company: string;
   role: string;
@@ -38,16 +37,16 @@ export type XBoardItem = {
   hasCv: boolean;
 };
 
-export type XData = {
-  jobs: XJob[];
-  board: Record<"applied" | "process" | "offer" | "closed", XBoardItem[]>;
+export type MatchData = {
+  jobs: MatchJob[];
+  board: Record<"applied" | "process" | "offer" | "closed", BoardItem[]>;
   stats: { matches: number; ready: number; appliedThisWeek: number; interviews: number; inbox: number };
   lastScan: { at: string; found: number; newAdded: number } | null;
   targetLabel: string;
   resume: { exists: boolean; words: number; updated: string; headline: string };
 };
 
-/** Block B ("CV Match") rows: requirement + ✅ / ⚠️ / ❌, the aiapply checklist. */
+/** Block B ("CV Match") rows: requirement + ✅ / ⚠️ / ❌, the qualification checklist. */
 export function qualificationsFrom(report: string): Qualification[] {
   const start = report.search(/^##\s*(B\)|.*CV Match)/im);
   if (start < 0) return [];
@@ -113,7 +112,7 @@ export function docsComplete(j: ReefJob): boolean {
   return j.docs.cv && (!needsSoq || j.docs.soq) && (!wantsCover(j) || j.docs.cover);
 }
 
-function readResume(): XData["resume"] {
+function readResume(): MatchData["resume"] {
   try {
     const file = path.join(careerOpsRoot(), "cv.md");
     const text = fs.readFileSync(file, "utf8");
@@ -135,12 +134,12 @@ function readResume(): XData["resume"] {
 
 const PROCESS = new Set(["Responded", "Assessment", "Interview"]);
 
-export async function readXData(): Promise<XData> {
+export async function readMatchData(): Promise<MatchData> {
   const reef = await readReefData();
   const apps = readApplications();
   const byN = new Map(apps.map((a) => [a.n, a]));
 
-  const jobs: XJob[] = reef.jobs.map((j) => {
+  const jobs: MatchJob[] = reef.jobs.map((j) => {
     const app = byN.get(j.n);
     const report = app ? readLinkedReport(app) : null;
     const summary = report ? readMachineSummary(report) : null;
@@ -163,13 +162,13 @@ export async function readXData(): Promise<XData> {
   // The board: every tracker row past Evaluated, newest move first.
   const enteredOn = new Map<string, string>();
   for (const row of readStatusLog()) enteredOn.set(`${row.num}|${row.to}`, row.date);
-  const board: XData["board"] = { applied: [], process: [], offer: [], closed: [] };
+  const board: MatchData["board"] = { applied: [], process: [], offer: [], closed: [] };
   const monthAgo = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   for (const app of apps) {
     const status = canonicalizeStatus(app.status) ?? app.status.trim();
     const when = enteredOn.get(`${parseInt(app.n, 10)}|${status}`) ?? app.date;
     const num = app.report.match(/reports\/(\d+)-/)?.[1];
-    const item: XBoardItem = {
+    const item: BoardItem = {
       n: app.n,
       company: app.company,
       role: app.role,
@@ -184,7 +183,7 @@ export async function readXData(): Promise<XData> {
     else if (status === "Offer" || status === "Hired") board.offer.push(item);
     else if (status === "Rejected" && when >= monthAgo) board.closed.push(item);
   }
-  for (const k of Object.keys(board) as (keyof XData["board"])[]) board[k].sort((a, b) => b.when.localeCompare(a.when));
+  for (const k of Object.keys(board) as (keyof MatchData["board"])[]) board[k].sort((a, b) => b.when.localeCompare(a.when));
 
   return {
     jobs,
@@ -202,11 +201,11 @@ export async function readXData(): Promise<XData> {
   };
 }
 
-export type XPrefs = { roles: string[]; target: string; minimum: string; remote: string; location: string };
+export type MatchPrefs = { roles: string[]; target: string; minimum: string; remote: string; location: string };
 
 /** What the onboarding wizard shows as "your current answers". Read-only. */
-export async function readXPrefs(): Promise<XPrefs> {
-  const empty: XPrefs = { roles: [], target: "", minimum: "", remote: "", location: "" };
+export async function readMatchPrefs(): Promise<MatchPrefs> {
+  const empty: MatchPrefs = { roles: [], target: "", minimum: "", remote: "", location: "" };
   try {
     const yaml = await import("js-yaml");
     const { getProfilePath } = await import("@/lib/core/profile-path.mjs");

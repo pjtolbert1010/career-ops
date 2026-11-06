@@ -1,10 +1,10 @@
-import { MatchesView } from "@/components/x/matches-view";
-import { readXData } from "@/lib/x-data";
+import { MatchesView } from "@/components/reef/work/matches-view";
+import { readMatchData } from "@/lib/match-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function XJobs() {
-  const data = await readXData();
+export default async function MatchesPage() {
+  const data = await readMatchData();
   return (
     <>
       <header className="mb-10 flex flex-col gap-3">

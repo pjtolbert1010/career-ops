@@ -1,4 +1,4 @@
-// Tracker writes from the /x pages go through /api/status, which runs
+// Tracker writes from the Career Reef work pages go through /api/status, which runs
 // set-status.mjs (locked, validated, logged). Nothing here submits anything.
 export async function setStatus(n: string, status: string): Promise<string | null> {
   const res = await fetch("/api/status", {

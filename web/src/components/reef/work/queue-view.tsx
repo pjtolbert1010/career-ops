@@ -1,17 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { XJob } from "@/lib/x-data";
+import type { MatchJob } from "@/lib/match-data";
 import { useJobs } from "@/components/jobs/job-store";
 import { ApplyButton } from "@/components/apply-button";
 import { DisplayHeading } from "@/components/lux/primitives";
-import { MatchScore } from "@/components/x/match-card";
-import { DecisionButtons, JobDrawer } from "@/components/x/job-panel";
-import { useSelectedJob } from "@/components/x/use-selected-job";
+import { MatchScore } from "@/components/reef/work/match-card";
+import { DecisionButtons, JobDrawer } from "@/components/reef/work/job-panel";
+import { useSelectedJob } from "@/components/reef/work/use-selected-job";
 
 const BATCH = 3;
 
-function DocDots({ job }: { job: XJob }) {
+function DocDots({ job }: { job: MatchJob }) {
   const needsSoq = job.calcareers || job.needs.soq;
   const wantsCover = !job.calcareers || job.needs.cover;
   const items = [
@@ -34,10 +34,10 @@ function DocDots({ job }: { job: XJob }) {
   );
 }
 
-// The aiapply "Auto Apply" queue, made safe: documents can be prepared in one
+// The apply queue: documents can be prepared in one
 // press (and the scheduled queue feeder prepares them unattended), but the last
 // step is always Open & fill, which stops at the employer's Submit button.
-export function QueueView({ jobs }: { jobs: XJob[] }) {
+export function QueueView({ jobs }: { jobs: MatchJob[] }) {
   const { jobs: workers, startJob } = useJobs();
   const [sel, setSel] = useSelectedJob(jobs.map((j) => j.id));
   const [started, setStarted] = useState<string[]>([]);
@@ -49,7 +49,7 @@ export function QueueView({ jobs }: { jobs: XJob[] }) {
   const needCv = prepare.filter((j) => !j.docs.cv && j.report && !running.has(j.report) && !started.includes(j.report));
   const prepareNext = () => {
     const batch = needCv.slice(0, BATCH);
-    for (const j of batch) startJob({ title: `Resume · ${j.employer}`, subtitle: "tailored for this role", kind: "pdf", input: j.report, page: "/x/queue" });
+    for (const j of batch) startJob({ title: `Resume · ${j.employer}`, subtitle: "tailored for this role", kind: "pdf", input: j.report, page: "/reef/queue" });
     setStarted((s) => [...s, ...batch.map((j) => j.report)]);
   };
 

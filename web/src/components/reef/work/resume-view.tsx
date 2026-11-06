@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { XData, XJob } from "@/lib/x-data";
+import type { MatchData, MatchJob } from "@/lib/match-data";
 import { Eyebrow } from "@/components/lux/primitives";
 
 type Coverage = { total: number; presentCount: number; coveragePct: number; present: string[]; thin: string[]; missing: string[] };
@@ -16,10 +16,10 @@ const REASON: Record<string, string> = {
   unparseable: "The keyword check returned no result.",
 };
 
-// aiapply's resume scanner, built on keyword-match.mjs: coverage of the job's
+// Resume check, built on keyword-match.mjs: coverage of the job's
 // keywords in your resume. Diagnostic only; it never edits the resume, and a
 // missing keyword is only worth adding if it is true.
-function AtsCheck({ jobs }: { jobs: XJob[] }) {
+function AtsCheck({ jobs }: { jobs: MatchJob[] }) {
   const withReport = jobs.filter((j) => j.report);
   const [report, setReport] = useState(withReport[0]?.report ?? "");
   const [ans, setAns] = useState<Answer | null>(null);
@@ -82,7 +82,7 @@ function Chips({ label, items, tone }: { label: string; items: string[]; tone: "
       <Eyebrow>{label}</Eyebrow>
       <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
         {items.map((k) => (
-          <li key={k} className="lux-tag normal-case tracking-normal text-[12px] text-[var(--lux-ink)]">
+          <li key={k} className="lux-tag normal-case tracking-normal text-[13px] text-[var(--lux-ink)]">
             {sign} {k}
           </li>
         ))}
@@ -91,7 +91,7 @@ function Chips({ label, items, tone }: { label: string; items: string[]; tone: "
   );
 }
 
-export function ResumeView({ resume, jobs }: { resume: XData["resume"]; jobs: XJob[] }) {
+export function ResumeView({ resume, jobs }: { resume: MatchData["resume"]; jobs: MatchJob[] }) {
   const tailored = jobs.filter((j) => j.docs.cv);
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
@@ -106,11 +106,11 @@ export function ResumeView({ resume, jobs }: { resume: XData["resume"]; jobs: XJ
               </p>
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link href="/cv" className="lux-btn lux-btn-sm lux-btn-solid">Edit resume</Link>
-                <Link href="/x/start" className="lux-btn lux-btn-sm">Replace from a file</Link>
+                <Link href="/reef/setup" className="lux-btn lux-btn-sm">Replace from a file</Link>
               </div>
             </>
           ) : (
-            <Link href="/x/start" className="lux-btn lux-btn-solid">Add your resume</Link>
+            <Link href="/reef/setup" className="lux-btn lux-btn-solid">Add your resume</Link>
           )}
         </div>
         <div className="flex flex-col gap-3">

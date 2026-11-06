@@ -112,15 +112,11 @@ export function LuxNav({ followupsEnabled }: { followupsEnabled: boolean }) {
 
           <nav aria-label="Primary" className="ml-auto hidden items-center gap-7 whitespace-nowrap xl:flex">
             {PRIMARY_NAV.map((i) => (
-              <Link key={i.label} href={i.href} className="lux-link" aria-current={i.href === pathname ? "page" : undefined}>
+              <Link key={i.label} href={i.href} className="lux-link" aria-current={i.href === pathname || (i.href !== "/reef" && pathname.startsWith(i.href)) ? "page" : undefined}>
                 <span className="lux-u">{i.label}</span>
               </Link>
             ))}
           </nav>
-
-          <Link href="/pipeline?tab=INBOX" className="lux-link ml-auto whitespace-nowrap xl:ml-2" aria-label="Inbox: pending postings">
-            <span className="lux-u">Inbox</span>
-          </Link>
 
           <button
             ref={menuBtnRef}
@@ -129,7 +125,7 @@ export function LuxNav({ followupsEnabled }: { followupsEnabled: boolean }) {
             aria-label="Open menu"
             aria-expanded={open}
             aria-controls="lux-menu"
-            className="relative -mr-2 flex size-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-[6px] border-0 bg-transparent"
+            className="relative -mr-2 ml-auto flex size-11 xl:ml-2 shrink-0 cursor-pointer flex-col items-center justify-center gap-[6px] border-0 bg-transparent"
           >
             <span className="block h-px w-6 bg-current" />
             <span className="block h-px w-6 bg-current" />

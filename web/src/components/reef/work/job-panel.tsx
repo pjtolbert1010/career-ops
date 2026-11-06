@@ -3,13 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { XJob } from "@/lib/x-data";
+import type { MatchJob } from "@/lib/match-data";
 import { ApplyButton } from "@/components/apply-button";
 import { GeneratePdfButton } from "@/components/generate-pdf-button";
 import { CoverDraftButton } from "@/components/cover-draft-button";
 import { Eyebrow } from "@/components/lux/primitives";
-import { MatchScore, QualList, sortedQuals } from "@/components/x/match-card";
-import { setStatus, undoStatus } from "@/components/x/status-actions";
+import { MatchScore, QualList, sortedQuals } from "@/components/reef/work/match-card";
+import { setStatus, undoStatus } from "@/components/reef/work/status-actions";
 
 function DocRow({ label, ready, href, children }: { label: string; ready: boolean; href: string; children?: React.ReactNode }) {
   return (
@@ -34,7 +34,7 @@ function DocRow({ label, ready, href, children }: { label: string; ready: boolea
   );
 }
 
-export function Documents({ job }: { job: XJob }) {
+export function Documents({ job }: { job: MatchJob }) {
   const view = (kind: string) => `/api/docs/${job.n}/pdf?kind=${kind}`;
   const needsSoq = job.calcareers || job.needs.soq;
   const wantsCover = !job.calcareers || job.needs.cover;
@@ -68,7 +68,7 @@ export function Documents({ job }: { job: XJob }) {
 }
 
 /** "I submitted it" and "Skip": the two tracker moves a match can make from here. */
-export function DecisionButtons({ job, onDone }: { job: XJob; onDone?: () => void }) {
+export function DecisionButtons({ job, onDone }: { job: MatchJob; onDone?: () => void }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; undo?: boolean } | null>(null);
@@ -115,7 +115,7 @@ export function DecisionButtons({ job, onDone }: { job: XJob; onDone?: () => voi
   );
 }
 
-export function JobPanel({ job, onClose }: { job: XJob; onClose: () => void }) {
+export function JobPanel({ job, onClose }: { job: MatchJob; onClose: () => void }) {
   const quals = sortedQuals(job.qualifications);
   return (
     <div className="flex flex-col gap-7 px-6 pb-10 sm:px-10">
@@ -128,7 +128,7 @@ export function JobPanel({ job, onClose }: { job: XJob; onClose: () => void }) {
       <div className="flex items-start justify-between gap-6">
         <div className="flex flex-col gap-3">
           <span className="lux-eyebrow">{job.employer}</span>
-          <h2 id="x-job-title" className="lux-display m-0 text-[2rem] sm:text-[2.4rem]">{job.title}</h2>
+          <h2 id="reef-job-title" className="lux-display m-0 text-[2rem] sm:text-[2rem]">{job.title}</h2>
           <p className="m-0 text-sm text-[var(--lux-mute)]">
             {[job.salary !== "Not stated" ? job.salary : "", job.location].filter(Boolean).join(" · ")}
           </p>
@@ -191,7 +191,7 @@ export function JobPanel({ job, onClose }: { job: XJob; onClose: () => void }) {
 }
 
 /** The right-hand drawer used by Matches, Home and the queue. */
-export function JobDrawer({ job, onClose }: { job: XJob | null; onClose: () => void }) {
+export function JobDrawer({ job, onClose }: { job: MatchJob | null; onClose: () => void }) {
   return (
     <>
       <div className={`lux-scrim${job ? " open" : ""}`} onClick={onClose} aria-hidden="true" />
@@ -199,7 +199,7 @@ export function JobDrawer({ job, onClose }: { job: XJob | null; onClose: () => v
         className={`lux-drawer lux-drawer-right${job ? " open" : ""}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="x-job-title"
+        aria-labelledby="reef-job-title"
         aria-hidden={!job}
         inert={!job}
       >

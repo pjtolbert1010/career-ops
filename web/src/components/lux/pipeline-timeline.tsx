@@ -14,7 +14,7 @@ export function PipelineTimeline({ stages }: { stages: Stage[] }) {
             <span className="lux-eyebrow">
               {String(i + 1).padStart(2, "0")} · {s.label}
             </span>
-            <span className="lux-serif text-[3.25rem] font-light leading-none tabular-nums transition-transform duration-700 group-hover:translate-x-1">{s.count}</span>
+            <span className="lux-serif text-[1.9rem] font-light leading-none tabular-nums transition-transform duration-700 group-hover:translate-x-1">{s.count}</span>
             <span className="text-sm text-[var(--lux-mute)]">{s.note}</span>
           </Link>
         </li>

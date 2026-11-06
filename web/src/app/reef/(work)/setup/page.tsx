@@ -1,10 +1,10 @@
-import { StartWizard } from "@/components/x/start-wizard";
-import { readXData, readXPrefs } from "@/lib/x-data";
+import { StartWizard } from "@/components/reef/work/start-wizard";
+import { readMatchData, readMatchPrefs } from "@/lib/match-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function XStart() {
-  const [data, prefs] = await Promise.all([readXData(), readXPrefs()]);
+export default async function SetupPage() {
+  const [data, prefs] = await Promise.all([readMatchData(), readMatchPrefs()]);
   return (
     <>
       <header className="mb-10 flex flex-col gap-3">

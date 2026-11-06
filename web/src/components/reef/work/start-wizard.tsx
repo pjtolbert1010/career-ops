@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { CvIngest } from "@/components/cv/cv-ingest";
-import type { XData, XPrefs } from "@/lib/x-data";
+import type { MatchData, MatchPrefs } from "@/lib/match-data";
 
 const STEPS = ["Your resume", "What you want", "You're set"];
 
@@ -14,10 +14,10 @@ function dollars(s: string): number | null {
   return Math.round(parseFloat(m[1]) * (m[2] ? 1000 : 1));
 }
 
-// aiapply's quiz, in three steps. Step 1 reuses the dashboard's CV import
+// Setup in three steps. Step 1 reuses the dashboard's CV import
 // (propose, preview, confirm). Step 2 writes only the fields you changed,
 // through the merge-safe /api/profile writer. Nothing is saved until you press Save.
-export function StartWizard({ prefs, resume }: { prefs: XPrefs; resume: XData["resume"] }) {
+export function StartWizard({ prefs, resume }: { prefs: MatchPrefs; resume: MatchData["resume"] }) {
   const [step, setStep] = useState(resume.exists ? 1 : 0);
   const [roles, setRoles] = useState(prefs.roles.join("\n"));
   const [minimum, setMinimum] = useState(prefs.minimum);
@@ -148,8 +148,8 @@ export function StartWizard({ prefs, resume }: { prefs: XPrefs; resume: XData["r
             New jobs arrive from the scheduled scans, are scored against your resume, and land in Matches. The best ones get documents made and wait in the Apply queue. You open each one, check it, and press Submit yourself.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link href="/x/jobs" className="lux-btn lux-btn-solid">See my matches</Link>
-            <Link href="/x/queue" className="lux-btn">Open the apply queue</Link>
+            <Link href="/reef/matches" className="lux-btn lux-btn-solid">See my matches</Link>
+            <Link href="/reef/queue" className="lux-btn">Open the apply queue</Link>
             <Link href="/explore" className="lux-btn">Search for new jobs</Link>
           </div>
           <p className="m-0 text-xs text-[var(--lux-mute)]">

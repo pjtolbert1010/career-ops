@@ -1,10 +1,10 @@
-import { QueueView } from "@/components/x/queue-view";
-import { readXData } from "@/lib/x-data";
+import { QueueView } from "@/components/reef/work/queue-view";
+import { readMatchData } from "@/lib/match-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function XQueue() {
-  const data = await readXData();
+export default async function QueuePage() {
+  const data = await readMatchData();
   return (
     <>
       <header className="mb-10 flex flex-col gap-3">

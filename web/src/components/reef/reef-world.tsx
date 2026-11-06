@@ -123,7 +123,7 @@ function JobDetail({ job, onClose }: { job: ReefJob; onClose: () => void }) {
       </div>
       <div className="flex flex-col gap-3">
         <span className="lux-eyebrow">{job.employer}</span>
-        <h2 id="lux-job-title" className="lux-display m-0 text-[2.25rem] sm:text-[2.6rem]">{job.title}</h2>
+        <h2 id="lux-job-title" className="lux-display m-0 text-[1.9rem] sm:text-[2rem]">{job.title}</h2>
       </div>
       <div className="flex items-center gap-4">
         <span className="lux-badge" data-top={job.fit >= 8 ? "true" : "false"}>
@@ -187,7 +187,7 @@ function ReviewItem({ job, onOpen, index }: { job: ReefJob; onOpen: () => void; 
     <Reveal as="li" delay={Math.min(index, 4) * 80} className="grid gap-8 border-t border-[var(--lux-hair)] py-10 md:grid-cols-[1.1fr_1fr] md:gap-14">
       <div className="flex flex-col gap-4">
         <span className="lux-eyebrow">{job.employer}</span>
-        <h3 className="lux-display m-0 text-[1.9rem] sm:text-[2.3rem]">{job.title}</h3>
+        <h3 className="lux-display m-0 text-[1.9rem] sm:text-[2rem]">{job.title}</h3>
         <div className="flex flex-wrap items-center gap-3">
           <span className="lux-badge" data-top={job.fit >= 8 ? "true" : "false"}>
             {job.fit}

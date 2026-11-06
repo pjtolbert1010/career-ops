@@ -1,6 +1,6 @@
 "use client";
 
-import type { XJob, Qualification } from "@/lib/x-data";
+import type { MatchJob, Qualification } from "@/lib/match-data";
 import { cn } from "@/lib/cn";
 
 export function fitLabel(match: number): string {
@@ -17,7 +17,7 @@ export function MatchScore({ match, large = false }: { match: number; large?: bo
         {match}
         <small aria-hidden="true">/100</small>
       </span>
-      <span className="text-[10px] uppercase tracking-[.18em] text-[var(--lux-mute)]">{fitLabel(match)}</span>
+      <span className="text-[13px] font-medium text-[var(--lux-mute)]">{fitLabel(match)}</span>
     </span>
   );
 }
@@ -48,13 +48,13 @@ export function QualList({ items, limit }: { items: Qualification[]; limit?: num
   );
 }
 
-/** Met first, then partial, then missing: the aiapply checklist order. */
+/** Met first, then partial, then missing: checklist order. */
 export function sortedQuals(items: Qualification[]): Qualification[] {
   const rank = { yes: 0, partial: 1, no: 2 } as const;
   return [...items].sort((a, b) => rank[a.met] - rank[b.met]);
 }
 
-export function MatchCard({ job, onOpen, selected }: { job: XJob; onOpen: () => void; selected?: boolean }) {
+export function MatchCard({ job, onOpen, selected }: { job: MatchJob; onOpen: () => void; selected?: boolean }) {
   const quals = sortedQuals(job.qualifications);
   const preview = [...quals.filter((q) => q.met === "yes").slice(0, 2), ...quals.filter((q) => q.met === "no").slice(0, 1)];
   return (

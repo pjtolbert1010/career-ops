@@ -18,10 +18,10 @@
   --lux-nav-h: 72px;
   --lux-ease: cubic-bezier(.22, .61, .36, 1);
   /* Type scale (fluid) */
-  --lux-t-hero: clamp(2.75rem, 1.6rem + 5vw, 6rem);
-  --lux-t-h2: clamp(2.1rem, 1.4rem + 2.8vw, 3.75rem);
-  --lux-t-h3: clamp(1.5rem, 1.2rem + 1vw, 2rem);
-  --lux-t-stat: clamp(3rem, 2rem + 4vw, 5.25rem);
+  --lux-t-hero: clamp(2.1rem, 1.7rem + 1.8vw, 3.25rem);
+  --lux-t-h2: clamp(1.75rem, 1.5rem + 1vw, 2.4rem);
+  --lux-t-h3: clamp(1.35rem, 1.25rem + .4vw, 1.65rem);
+  --lux-t-stat: clamp(2.1rem, 1.8rem + 1.2vw, 2.9rem);
   /* Spacing */
   --lux-s-section: clamp(4.5rem, 3rem + 7vw, 9rem);
   --lux-s-gutter: clamp(1.25rem, .5rem + 3vw, 4rem);
@@ -38,16 +38,16 @@
 }
 
 .lux-page { background: var(--lux-paper); color: var(--lux-ink); }
-.lux-serif { font-family: var(--lux-serif); font-weight: 400; letter-spacing: -0.01em; font-variant-numeric: lining-nums; }
-.lux-eyebrow { font-size: 11px; font-weight: 500; letter-spacing: .28em; text-transform: uppercase; color: var(--lux-mute); }
-.lux-display { font-family: var(--lux-serif); font-weight: 400; line-height: 1.04; letter-spacing: -0.015em; color: var(--lux-ink); }
-.lux-display em { font-style: italic; font-weight: 400; }
+.lux-serif { font-family: var(--lux-serif); font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: lining-nums; }
+.lux-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--lux-mute); }
+.lux-display { font-family: var(--lux-serif); font-weight: 500; line-height: 1.15; letter-spacing: -0.015em; color: var(--lux-ink); }
+.lux-display em { font-style: italic; font-weight: 500; }
 .lux-section { padding-block: var(--lux-s-section); padding-inline: var(--lux-s-gutter); }
 .lux-wrap { max-width: 1320px; margin-inline: auto; }
-.lux-lede { color: var(--lux-mute); font-weight: 300; line-height: 1.7; }
+.lux-lede { color: var(--lux-mute); font-size: 1.0625rem; font-weight: 400; line-height: 1.65; }
 
 /* Links: a hairline that draws in on hover. */
-.lux-link { position: relative; display: inline-flex; align-items: center; gap: .6em; min-height: 44px; color: inherit; text-decoration: none; font-size: 12px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; background: none; border: 0; padding: 0; cursor: pointer; }
+.lux-link { position: relative; display: inline-flex; align-items: center; gap: .6em; min-height: 44px; color: inherit; text-decoration: none; font-size: 15px; font-weight: 500; letter-spacing: .01em; background: none; border: 0; padding: 0; cursor: pointer; }
 .lux-link > .lux-u { position: relative; }
 .lux-link > .lux-u::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform .6s var(--lux-ease); }
 .lux-link:hover > .lux-u::after, .lux-link:focus-visible > .lux-u::after, .lux-link[aria-current="page"] > .lux-u::after { transform: scaleX(1); }
@@ -58,7 +58,7 @@
 a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
 
 /* Buttons: understated, thin border or ink fill, big tap targets. */
-.lux-btn { display: inline-flex; min-height: 52px; align-items: center; justify-content: center; gap: .75rem; padding: 0 1.75rem; border: 1px solid var(--lux-ink); border-radius: 0; background: transparent; color: var(--lux-ink); font-size: 12px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: background-color .4s var(--lux-ease), color .4s var(--lux-ease), border-color .4s var(--lux-ease); }
+.lux-btn { display: inline-flex; min-height: 52px; align-items: center; justify-content: center; gap: .75rem; padding: 0 1.75rem; border: 1px solid var(--lux-ink); border-radius: 0; background: transparent; color: var(--lux-ink); font-size: 15px; font-weight: 500; letter-spacing: .01em; text-decoration: none; cursor: pointer; transition: background-color .4s var(--lux-ease), color .4s var(--lux-ease), border-color .4s var(--lux-ease); }
 .lux-btn:hover { background: var(--lux-ink); color: var(--lux-paper); }
 .lux-btn:focus-visible { outline: 2px solid var(--lux-accent); outline-offset: 3px; }
 .lux-btn-solid { background: var(--lux-ink); color: var(--lux-paper); }
@@ -66,14 +66,14 @@ a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
 .lux-btn-light { border-color: rgba(255, 255, 255, .85); color: #fff; }
 .lux-btn-light:hover { background: #fff; color: #0e1a24; }
 .lux-btn-disabled, .lux-btn-disabled:hover { border-style: dashed; border-color: var(--lux-hair); background: transparent; color: var(--lux-mute); cursor: not-allowed; letter-spacing: .12em; text-align: center; padding-block: .5rem; }
-.lux-btn-sm { min-height: 44px; padding: 0 1.1rem; font-size: 11px; }
+.lux-btn-sm { min-height: 44px; padding: 0 1.1rem; font-size: 14px; }
 @media (max-width: 640px) { .lux-btn:not(.lux-btn-sm) { min-height: 56px; width: 100%; } }
 
 /* Score badge: a thin ring with serif numerals. */
-.lux-badge { font-variant-numeric: lining-nums; display: inline-flex; align-items: baseline; gap: 3px; padding: .3rem .75rem; border: 1px solid var(--lux-hair); border-radius: 999px; font-family: var(--lux-serif); font-size: 1.15rem; line-height: 1; color: var(--lux-ink); background: var(--lux-white); white-space: nowrap; }
-.lux-badge small { font-family: var(--font-sans); font-size: 9px; letter-spacing: .18em; color: var(--lux-mute); }
+.lux-badge { font-variant-numeric: lining-nums; display: inline-flex; align-items: baseline; gap: 3px; padding: .3rem .75rem; border: 1px solid var(--lux-hair); border-radius: 999px; font-family: var(--lux-serif); font-size: 1.15rem; font-weight: 600; line-height: 1; color: var(--lux-ink); background: var(--lux-white); white-space: nowrap; }
+.lux-badge small { font-family: var(--font-sans); font-size: 11px; letter-spacing: .04em; color: var(--lux-mute); }
 .lux-badge[data-top="true"] { border-color: var(--lux-gold); }
-.lux-tag { display: inline-flex; align-items: center; padding: .25rem .6rem; border: 1px solid var(--lux-hair); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--lux-mute); }
+.lux-tag { display: inline-flex; align-items: center; padding: .25rem .6rem; border: 1px solid var(--lux-hair); font-size: 13px; letter-spacing: .02em; color: var(--lux-mute); }
 
 /* Cards: product-collection feel, hover reveals actions. */
 .lux-card { position: relative; display: flex; flex-direction: column; background: var(--lux-white); border: 1px solid var(--lux-hair); transition: border-color .5s var(--lux-ease), box-shadow .5s var(--lux-ease); }
@@ -93,7 +93,7 @@ a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
 
 /* Filter tabs */
 .lux-tabs { display: flex; flex-wrap: wrap; gap: .25rem 2rem; border-bottom: 1px solid var(--lux-hair); }
-.lux-tab { min-height: 48px; padding: 0; background: none; border: 0; border-bottom: 1px solid transparent; margin-bottom: -1px; color: var(--lux-mute); font-size: 11px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; cursor: pointer; transition: color .4s var(--lux-ease), border-color .4s var(--lux-ease); }
+.lux-tab { min-height: 48px; padding: 0; background: none; border: 0; border-bottom: 1px solid transparent; margin-bottom: -1px; color: var(--lux-mute); font-size: 15px; font-weight: 500; letter-spacing: .01em; cursor: pointer; transition: color .4s var(--lux-ease), border-color .4s var(--lux-ease); }
 .lux-tab:hover { color: var(--lux-ink); }
 .lux-tab[aria-selected="true"] { color: var(--lux-ink); border-bottom-color: var(--lux-ink); }
 .lux-tab:focus-visible { outline: 2px solid var(--lux-accent); outline-offset: 2px; }
@@ -102,7 +102,7 @@ a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
 .lux-nav { position: fixed; inset-inline: 0; top: 0; z-index: 40; height: calc(var(--lux-nav-h) + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); color: var(--lux-ink); background: var(--lux-paper); border-bottom: 1px solid var(--lux-hair); transition: background-color .5s var(--lux-ease), color .5s var(--lux-ease), border-color .5s var(--lux-ease); }
 .lux-nav[data-over-hero="true"] { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .18); }
 .lux-nav a, .lux-nav button { color: inherit; }
-.lux-wordmark { font-family: var(--lux-serif); font-size: 1.6rem; font-weight: 400; letter-spacing: .02em; line-height: 1; text-decoration: none; white-space: nowrap; }
+.lux-wordmark { font-family: var(--lux-serif); font-size: 1.6rem; font-weight: 600; letter-spacing: .02em; line-height: 1; text-decoration: none; white-space: nowrap; }
 .lux-wordmark em { font-style: italic; }
 .lux-main-pad { padding-top: calc(var(--lux-nav-h) + env(safe-area-inset-top)); }
 
@@ -122,7 +122,7 @@ a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
   .lux-stats > :nth-child(even) { border-left: 1px solid var(--lux-hair) !important; }
   .lux-stats > :nth-child(n + 3) { border-top: 1px solid var(--lux-hair); }
 }
-.lux-stat-num { font-family: var(--lux-serif); font-size: var(--lux-t-stat); font-weight: 300; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--lux-ink); }
+.lux-stat-num { font-family: var(--lux-serif); font-size: var(--lux-t-stat); font-weight: 500; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--lux-ink); }
 
 /* Pipeline timeline */
 .lux-timeline { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: relative; }
@@ -185,3 +185,9 @@ a:hover .lux-arrow, button:hover .lux-arrow { transform: translateX(4px); }
   .lux-btn { letter-spacing: .14em; padding: 0 1.1rem; }
   .lux-card-actions .lux-link { letter-spacing: .14em; }
 }
+
+/* Readability: Tailwind's smallest sizes run too small next to the serif
+   headings in the Career Reef pages, so they step up one notch here. */
+.lux-page .text-xs, .reef-lux .text-xs { font-size: .8125rem; line-height: 1.4; }
+.lux-page .text-sm, .reef-lux .text-sm { font-size: .9375rem; line-height: 1.55; }
+.lux-page, .reef-lux { font-size: 1rem; line-height: 1.6; }

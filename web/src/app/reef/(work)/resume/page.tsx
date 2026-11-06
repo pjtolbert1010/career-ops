@@ -1,10 +1,10 @@
-import { ResumeView } from "@/components/x/resume-view";
-import { readXData } from "@/lib/x-data";
+import { ResumeView } from "@/components/reef/work/resume-view";
+import { readMatchData } from "@/lib/match-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function XResume() {
-  const data = await readXData();
+export default async function ResumePage() {
+  const data = await readMatchData();
   return (
     <>
       <header className="mb-10 flex flex-col gap-3">
