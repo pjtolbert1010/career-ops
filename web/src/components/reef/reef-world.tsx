@@ -160,7 +160,12 @@ function JobDetail({ job, onClose }: { job: ReefJob; onClose: () => void }) {
         <p className="m-0 text-center text-xs text-[var(--lux-mute)]">Opens the form filled with your tailored CV and saved answers. You review and press Submit yourself.</p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <GeneratePdfButton n={job.n} company={job.employer} pdfReady={job.pdfReady} />
+        {/* The CV worker takes the REPORT number, not the tracker row (they differ on some rows). */}
+        {job.report ? (
+          <GeneratePdfButton n={job.report} company={job.employer} pdfReady={job.pdfReady} />
+        ) : (
+          <span className="text-xs text-[var(--lux-mute)]">No evaluation report linked, so no tailored CV can be made.</span>
+        )}
       </div>
       <Documents job={job} />
       <div className="flex flex-wrap items-center justify-between gap-4">

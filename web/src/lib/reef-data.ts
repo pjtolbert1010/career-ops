@@ -17,8 +17,10 @@ export type CritterKind = "crab" | "octo" | "puffer" | "jelly" | "star" | "horse
 
 export type ReefJob = {
   id: string;
-  /** Tracker row number, the key Apply and CV generation use. */
+  /** Tracker row number, the key Apply and the documents panel use. */
   n: string;
+  /** Report number, the key the CV worker (pdf mode) and CV Studio use. "" when no report is linked. */
+  report: string;
   /** Tracker PDF column is ✅: a tailored CV exists for this row. */
   pdfReady: boolean;
   zone: ReefZone;
@@ -182,6 +184,7 @@ function toJob(app: Application, report: string | null, target: number | null, s
     nextAction: report ? yamlScalar(report, "next_action") : "",
     url: resolvePostingUrl(app.url, field(meta.fields, "URL")),
     reportHref: reportHrefFor(app),
+    report: app.report.match(/reports\/(\d+)-/)?.[1] ?? "",
     ...documentsFor(app, report, resolvePostingUrl(app.url, field(meta.fields, "URL")), core),
   };
 }

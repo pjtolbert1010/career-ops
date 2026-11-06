@@ -151,7 +151,7 @@ export async function readXData(): Promise<XData> {
       strengths: summary?.strengths ?? [],
       gaps: summary?.softGaps ?? [],
       qualifications: (report && qualificationsFrom(report).length ? qualificationsFrom(report) : fallbackQuals(summary?.strengths ?? [], summary?.softGaps ?? [])),
-      report: j.reportHref.replace("/pipeline/", ""),
+      report: j.report,
       remote: isRemote(j.location, app?.notes ?? "", report ?? ""),
       // Same rule as Reef Watch "Ready for review": the tailored resume, plus the
       // SOQ when the posting needs one. A missing cover letter is flagged, not blocking.
