@@ -48,4 +48,5 @@ export const MORE_NAV: { href: string; label: string }[] = [
   { href: "/followups", label: "Follow-ups" },
   { href: "/analytics", label: "Analytics" },
   { href: "/jobs", label: "Worker history" },
+  { href: "/x", label: "Career ops X Ai apply" },
 ];
